@@ -76,7 +76,5 @@ fn main() {
 
     //     println!("You entered: {}", input);
     // }
-
-    println!("App name: {}", constants::APP_NAME);
-    storage::storage();
+    crate::storage::create_box_dir();
 }
