@@ -1,10 +1,9 @@
 use std::{ptr::{null_mut, null}, os::raw::c_void};
 use windows_sys::Win32::{
-    UI::WindowsAndMessaging::{WM_INITMENUPOPUP, CreateWindowExW, ShowWindow, SW_SHOW, CreateWindowExA, WS_CHILD, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT},
+    UI::WindowsAndMessaging::{WM_INITMENUPOPUP, CreateWindowExW, ShowWindow, SW_SHOW, CreateWindowExA, WS_CHILD, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, RegisterClassA, WNDCLASSEXW, WNDCLASSA, WNDCLASSEXA, WNDPROC},
     System::DataExchange::{GetClipboardData, OpenClipboard, EmptyClipboard}, Foundation::{HWND, HANDLE},
-    Foundation::GetLastError
+    Foundation::{GetLastError, HINSTANCE}
 };
-use windows::core::Error;
 
 mod events;
 mod enums;
@@ -43,11 +42,29 @@ fn main() {
 
     // Create a window
     unsafe {
+
+        // register class
+        let class_name = "ClipBox".as_ptr() as *const u16;
+        let mut wc = WNDCLASSEXW{
+            cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
+            style: 0,
+            lpfnWndProc: WNDPROC::default(),
+            cbClsExtra: 0,
+            cbWndExtra: 0,
+            hInstance: HINSTANCE::default(),
+            hIcon: 0 as HANDLE,
+            hCursor: 0 as HANDLE,
+            hbrBackground: 0 as HANDLE,
+            lpszMenuName: 0 as *const u16,
+            lpszClassName: class_name,
+            hIconSm: 0 as HANDLE,
+        };
+
         let window: HWND = CreateWindowExW(
             0,
             "STATIC".as_ptr() as *const u16,
             "ClipBox".as_ptr() as *const u16,
-            WS_CHILD,
+            WS_OVERLAPPEDWINDOW,
             CW_USEDEFAULT,
             CW_USEDEFAULT,
             CW_USEDEFAULT,
@@ -73,8 +90,7 @@ fn main() {
     //     if input.trim() == "exit" {
     //         break;
     //     }
-
-    //     println!("You entered: {}", input);
-    // }
+        println!("You entered: {}", input);
+    }
     crate::storage::create_box_dir();
 }
