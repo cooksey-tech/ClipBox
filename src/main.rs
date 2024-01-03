@@ -81,16 +81,15 @@ fn main() {
         println!("window: {:?}", window);
     }
 
-    loop {
-        println!("Enter a message (or 'exit' to quit):");
+    // loop {
+    //     println!("Enter a message (or 'exit' to quit):");
 
-        let mut input = String::new();
-        std::io::stdin().read_line(&mut input).unwrap();
+    //     let mut input = String::new();
+    //     std::io::stdin().read_line(&mut input).unwrap();
 
-        if input.trim() == "exit" {
-            break;
-        }
-
+    //     if input.trim() == "exit" {
+    //         break;
+    //     }
         println!("You entered: {}", input);
     }
     crate::storage::create_box_dir();
