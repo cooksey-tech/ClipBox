@@ -40,46 +40,7 @@ fn main() {
     }
 
 
-    // Create a window
-    unsafe {
 
-        // register class
-        let class_name = "ClipBox".as_ptr() as *const u16;
-        let mut wc = WNDCLASSEXW{
-            cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
-            style: 0,
-            lpfnWndProc: WNDPROC::default(),
-            cbClsExtra: 0,
-            cbWndExtra: 0,
-            hInstance: HINSTANCE::default(),
-            hIcon: 0 as HANDLE,
-            hCursor: 0 as HANDLE,
-            hbrBackground: 0 as HANDLE,
-            lpszMenuName: 0 as *const u16,
-            lpszClassName: class_name,
-            hIconSm: 0 as HANDLE,
-        };
-
-        let window: HWND = CreateWindowExW(
-            0,
-            "STATIC".as_ptr() as *const u16,
-            "ClipBox".as_ptr() as *const u16,
-            WS_OVERLAPPEDWINDOW,
-            CW_USEDEFAULT,
-            CW_USEDEFAULT,
-            CW_USEDEFAULT,
-            CW_USEDEFAULT,
-            0 as HWND,
-            0 as HANDLE,
-            0 as HANDLE,
-            null(),
-        );
-        let error = GetLastError();
-        println!("error: {:?}", error);
-
-        ShowWindow(window, SW_SHOW);
-        println!("window: {:?}", window);
-    }
 
     // loop {
     //     println!("Enter a message (or 'exit' to quit):");
@@ -90,7 +51,8 @@ fn main() {
     //     if input.trim() == "exit" {
     //         break;
     //     }
-        println!("You entered: {}", input);
-    }
+    // println!("You entered: {}", input);
+    // }
     crate::storage::create_box_dir();
+    events::window::create_window();
 }
