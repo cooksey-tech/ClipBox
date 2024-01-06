@@ -6,7 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-windows = "0.52.0"
 
 [dependencies.windows-sys]
 version = "0.52.0"
@@ -15,5 +14,7 @@ features = [
     "Win32_Security",
     "Win32_System_Threading",
     "Win32_UI_WindowsAndMessaging",
-    "Win32_System_DataExchange"
+    "Win32_System_DataExchange",
+    "Win32_Graphics_Gdi",
+    "Win32_System_LibraryLoader"
 ]
