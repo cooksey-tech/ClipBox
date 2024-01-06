@@ -5,7 +5,7 @@ use std::ptr::null_mut;
 use windows_sys::Win32::Foundation::{WPARAM, LPARAM, LRESULT};
 use windows_sys::Win32::Graphics::Gdi::{HBRUSH, PAINTSTRUCT, BeginPaint, EndPaint};
 use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleExW, GetModuleHandleW};
-use windows_sys::Win32::UI::WindowsAndMessaging::{HICON, HCURSOR, HMENU, PostQuitMessage, DefWindowProcW, WM_PAINT, WM_DESTROY};
+use windows_sys::Win32::UI::WindowsAndMessaging::{HICON, HCURSOR, HMENU, PostQuitMessage, DefWindowProcW, WM_PAINT, WM_DESTROY, MSG, GetMessageW, TranslateMessage, DispatchMessageW};
 use windows_sys::Win32::{
     Foundation::{GetLastError, HANDLE, HINSTANCE, HWND},
     System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION},
@@ -48,50 +48,71 @@ pub fn foreground_window() -> (App, Option<HWND>) {
 }
 
 pub fn create_window() {
+
+    // Convert class_name to null-terminated wide string
+    let class_name_wide: Vec<u16> = OsStr::new("ClipBox").encode_wide().chain(once(0)).collect();
+
+    // register class
+    let mut wc = WNDCLASSEXW {
+        cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
+        style: 0,
+        lpfnWndProc: Some(window_proc),
+        cbClsExtra: 0,
+        cbWndExtra: 0,
+        hInstance: unsafe { GetModuleHandleW(null_mut()) } as HINSTANCE,
+        hIcon: HICON::default(),
+        hCursor: HCURSOR::default(),
+        hbrBackground: HBRUSH::default(),
+        lpszMenuName: null_mut(),
+        lpszClassName: class_name_wide.as_ptr(),
+        hIconSm: HICON::default(),
+    };
+
+    unsafe { RegisterClassExW(&mut wc) };
+
+    let window = unsafe { CreateWindowExW(
+        0,
+        class_name_wide.as_ptr(),
+        class_name_wide.as_ptr(),
+        WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT,
+        CW_USEDEFAULT,
+        CW_USEDEFAULT,
+        CW_USEDEFAULT,
+        HWND::default(),
+        HMENU::default(),
+        wc.hInstance,
+        null_mut(),
+    ) };
+
+    let error = unsafe { GetLastError() };
+    println!("error: {:?}", error);
+
+    unsafe { ShowWindow(window, SW_SHOW) };
+    println!("window: {:?}", window);
+
+    // Process Windows messages
+    let mut msg: MSG = unsafe { std::mem::zeroed() };
+
     unsafe {
-        // Convert class_name to null-terminated wide string
-        let class_name_wide: Vec<u16> = OsStr::new("ClipBox").encode_wide().chain(once(0)).collect();
+        loop {
+            match GetMessageW(&mut msg, window, 0, 0) {
+                0 => break,
+                -1 => {
+                    // Handle errors
+                    println!("error: {:?}", GetLastError());
+                    break;
+                }
+                _ => {
+                    TranslateMessage(&msg);
+                    DispatchMessageW(&msg);
+                }
 
-        // register class
-        let mut wc = WNDCLASSEXW {
-            cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
-            style: 0,
-            lpfnWndProc: Some(window_proc),
-            cbClsExtra: 0,
-            cbWndExtra: 0,
-            hInstance: GetModuleHandleW(null_mut()) as HINSTANCE,
-            hIcon: HICON::default(),
-            hCursor: HCURSOR::default(),
-            hbrBackground: HBRUSH::default(),
-            lpszMenuName: null_mut(),
-            lpszClassName: class_name_wide.as_ptr(),
-            hIconSm: HICON::default(),
-        };
-
-        let result = RegisterClassExW(&mut wc);
-
-        let window = CreateWindowExW(
-            0,
-            class_name_wide.as_ptr(),
-            class_name_wide.as_ptr(),
-            WS_OVERLAPPEDWINDOW,
-            CW_USEDEFAULT,
-            CW_USEDEFAULT,
-            CW_USEDEFAULT,
-            CW_USEDEFAULT,
-            HWND::default(),
-            HMENU::default(),
-            wc.hInstance,
-            null_mut(),
-        );
-
-        let error = GetLastError();
-        println!("error: {:?}", error);
-
-        ShowWindow(window, SW_SHOW);
-        println!("window: {:?}", window);
+            }
+        }
     }
 }
+
 extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     match msg {
         WM_DESTROY => {
