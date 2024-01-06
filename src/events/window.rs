@@ -1,11 +1,11 @@
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::iter::once;
-use std::os::windows::ffi::OsStrExt;
+use std::os::windows::ffi::{OsStrExt, OsStringExt};
 use std::ptr::null_mut;
 use windows_sys::Win32::Foundation::{WPARAM, LPARAM, LRESULT};
 use windows_sys::Win32::Graphics::Gdi::{HBRUSH, PAINTSTRUCT, BeginPaint, EndPaint};
 use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleExW, GetModuleHandleW};
-use windows_sys::Win32::UI::WindowsAndMessaging::{HICON, HCURSOR, HMENU, PostQuitMessage, DefWindowProcW, WM_PAINT, WM_DESTROY, MSG, GetMessageW, TranslateMessage, DispatchMessageW};
+use windows_sys::Win32::UI::WindowsAndMessaging::{HICON, HCURSOR, HMENU, PostQuitMessage, DefWindowProcW, WM_PAINT, WM_DESTROY, MSG, GetMessageW, TranslateMessage, DispatchMessageW, WS_EX_APPWINDOW, WS_EX_ACCEPTFILES, WS_CHILD, WS_TABSTOP, WS_VISIBLE, BS_DEFPUSHBUTTON, MessageBoxExW};
 use windows_sys::Win32::{
     Foundation::{GetLastError, HANDLE, HINSTANCE, HWND},
     System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION},
@@ -17,6 +17,7 @@ use windows_sys::Win32::{
 };
 
 use crate::enums::app::App;
+use crate::tools::encoding::wide_char;
 
 pub fn foreground_window() -> (App, Option<HWND>) {
     // Retrieves a handle to the foreground window
@@ -50,7 +51,7 @@ pub fn foreground_window() -> (App, Option<HWND>) {
 pub fn create_window() {
 
     // Convert class_name to null-terminated wide string
-    let class_name_wide: Vec<u16> = OsStr::new("ClipBox").encode_wide().chain(once(0)).collect();
+    let class_name = wide_char("ClipBox");
 
     // register class
     let mut wc = WNDCLASSEXW {
@@ -64,7 +65,7 @@ pub fn create_window() {
         hCursor: HCURSOR::default(),
         hbrBackground: HBRUSH::default(),
         lpszMenuName: null_mut(),
-        lpszClassName: class_name_wide.as_ptr(),
+        lpszClassName: class_name,
         hIconSm: HICON::default(),
     };
 
@@ -72,9 +73,9 @@ pub fn create_window() {
 
     let window = unsafe { CreateWindowExW(
         0,
-        class_name_wide.as_ptr(),
-        class_name_wide.as_ptr(),
-        WS_OVERLAPPEDWINDOW,
+        class_name,
+        class_name,
+        WS_EX_ACCEPTFILES, // Window to accept drag and drop
         CW_USEDEFAULT,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
@@ -85,6 +86,22 @@ pub fn create_window() {
         null_mut(),
     ) };
 
+    let hwndButton = unsafe {
+        CreateWindowExW(
+        0,  // Predefined class; Unicode assumed
+        wide_char("BUTTON"),      // Button text
+        null_mut(),  // Styles
+        WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON as u32,         // x position
+        10,         // y position
+        10,        // Button width
+        100,        // Button height
+        100,     // Parent window
+        window,
+        HMENU::default(),
+        wc.hInstance, // Pointer not needed.
+        null_mut(), // Pointer not needed.
+    ) };
+
     let error = unsafe { GetLastError() };
     println!("error: {:?}", error);
 
@@ -93,6 +110,13 @@ pub fn create_window() {
 
     // Process Windows messages
     let mut msg: MSG = unsafe { std::mem::zeroed() };
+
+    let msgBox = unsafe { MessageBoxExW(
+        HWND::default(),
+        wide_char("Hello World!"),
+        wide_char("text"),
+        0,
+        0) };
 
     unsafe {
         loop {

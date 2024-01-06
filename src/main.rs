@@ -10,6 +10,7 @@ mod enums;
 mod constants;
 mod storage;
 pub mod settings;
+pub mod tools;
 
 fn main() {
     // Sent when a drop-down menu or submenu is about to become active. This allows an application to modify the menu before it is displayed, without changing the entire menu.
@@ -43,5 +44,5 @@ fn main() {
     crate::storage::create_box_dir();
     events::window::create_window();
 
-    
+
 }
