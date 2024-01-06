@@ -1,3 +1,6 @@
+use std::ffi::OsStr;
+use std::iter::once;
+use std::os::windows::ffi::OsStrExt;
 use std::ptr::null_mut;
 use windows_sys::Win32::Foundation::{WPARAM, LPARAM, LRESULT};
 use windows_sys::Win32::Graphics::Gdi::{HBRUSH, PAINTSTRUCT, BeginPaint, EndPaint};
@@ -46,37 +49,40 @@ pub fn foreground_window() -> (App, Option<HWND>) {
 
 pub fn create_window() {
     unsafe {
+        // Convert class_name to null-terminated wide string
+        let class_name_wide: Vec<u16> = OsStr::new("ClipBox").encode_wide().chain(once(0)).collect();
+
         // register class
-        let class_name = "ClipBox\0".as_ptr() as *const u16; // Ensure null-terminated string
         let mut wc = WNDCLASSEXW {
-            cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32, // Size of structure (bytes)
-            style: 0, // Determines attributes like window appearance and behavior
-            lpfnWndProc: Some(window_proc), // Pointer to the window procedure function
-            cbClsExtra: 0, // Number of extra bytes to allocate for class data
-            cbWndExtra: 0, // Number of extra bytes to allocate for each window of this class
-            hInstance: GetModuleHandleW(null_mut()) as HINSTANCE, // Handle to the instance of the module that contains the window procedure
-            hIcon: HICON::default(), // Used to represent windows of this class in taskbars, title bars, etc
-            hCursor: HCURSOR::default(), // Used to represent windows of this class in taskbars, title bars, etc
-            hbrBackground: HBRUSH::default(), // Handle to the brush used to paint the background of windows of this class
-            lpszMenuName: null_mut(), // Pointer to a null-terminated string that specifies the name of the class menu, if any
-            lpszClassName: class_name, // Pointer to a null-terminated string that specifies the window class name
-            hIconSm:HICON::default(), // Used in places like the taskbar or title bar when icons are displayed in smaller sizes
+            cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
+            style: 0,
+            lpfnWndProc: Some(window_proc),
+            cbClsExtra: 0,
+            cbWndExtra: 0,
+            hInstance: GetModuleHandleW(null_mut()) as HINSTANCE,
+            hIcon: HICON::default(),
+            hCursor: HCURSOR::default(),
+            hbrBackground: HBRUSH::default(),
+            lpszMenuName: null_mut(),
+            lpszClassName: class_name_wide.as_ptr(),
+            hIconSm: HICON::default(),
         };
+
         let result = RegisterClassExW(&mut wc);
 
         let window = CreateWindowExW(
-            0, // Optional window styles
-            wc.lpszClassName, // Pointer to a null-terminated string specifying the name of the window class
-            "ClipBox\0".as_ptr() as *const u16, // Pointer to a null-terminated string that will be the window's title
-            WS_OVERLAPPEDWINDOW, // Window style, including title bar, sizing border, window menu, and minimize/maximize buttons
-            CW_USEDEFAULT, // Initial horizontal position
-            CW_USEDEFAULT, // Initial vertical position
-            CW_USEDEFAULT, // Initial width of the window
-            CW_USEDEFAULT, // Initial height of the window
-            HWND::default(), // Handle to the parent or owner window
-            HMENU::default(), // Handle to a menu, or specifies a child-window identifier depending on the window style
-            wc.hInstance, // Handle to the instance of the module that created the window
-            null_mut(), // Pointer to a value to be passed to the window through the WM_CREATE message
+            0,
+            class_name_wide.as_ptr(),
+            class_name_wide.as_ptr(),
+            WS_OVERLAPPEDWINDOW,
+            CW_USEDEFAULT,
+            CW_USEDEFAULT,
+            CW_USEDEFAULT,
+            CW_USEDEFAULT,
+            HWND::default(),
+            HMENU::default(),
+            wc.hInstance,
+            null_mut(),
         );
 
         let error = GetLastError();
@@ -86,7 +92,6 @@ pub fn create_window() {
         println!("window: {:?}", window);
     }
 }
-
 extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     match msg {
         WM_DESTROY => {

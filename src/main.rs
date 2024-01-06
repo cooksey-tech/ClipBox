@@ -39,20 +39,18 @@ fn main() {
         _ => println!("Unsupported"),
     }
 
-
-
-
-    // loop {
-    //     println!("Enter a message (or 'exit' to quit):");
-
-    //     let mut input = String::new();
-    //     std::io::stdin().read_line(&mut input).unwrap();
-
-    //     if input.trim() == "exit" {
-    //         break;
-    //     }
-    // println!("You entered: {}", input);
-    // }
     crate::storage::create_box_dir();
     events::window::create_window();
+    
+    loop {
+        println!("Enter a message (or 'exit' to quit):");
+
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input).unwrap();
+
+        if input.trim() == "exit" {
+            break;
+        }
+    println!("You entered: {}", input);
+    }
 }
