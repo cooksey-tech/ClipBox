@@ -1,11 +1,12 @@
+use std::f32::consts::E;
 use std::ffi::{OsStr, OsString};
 use std::iter::once;
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
 use std::ptr::null_mut;
 use windows_sys::Win32::Foundation::{WPARAM, LPARAM, LRESULT};
-use windows_sys::Win32::Graphics::Gdi::{HBRUSH, PAINTSTRUCT, BeginPaint, EndPaint};
+use windows_sys::Win32::Graphics::Gdi::{HBRUSH, PAINTSTRUCT, BeginPaint, EndPaint, CreatePen, PS_SOLID, SelectObject, Ellipse, DeleteObject};
 use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleExW, GetModuleHandleW};
-use windows_sys::Win32::UI::WindowsAndMessaging::{HICON, HCURSOR, HMENU, PostQuitMessage, DefWindowProcW, WM_PAINT, WM_DESTROY, MSG, GetMessageW, TranslateMessage, DispatchMessageW, WS_EX_APPWINDOW, WS_EX_ACCEPTFILES, WS_CHILD, WS_TABSTOP, WS_VISIBLE, BS_DEFPUSHBUTTON, MessageBoxExW};
+use windows_sys::Win32::UI::WindowsAndMessaging::{HICON, HCURSOR, HMENU, PostQuitMessage, DefWindowProcW, WM_PAINT, WM_DESTROY, MSG, GetMessageW, TranslateMessage, DispatchMessageW, WS_EX_APPWINDOW, WS_EX_ACCEPTFILES, WS_CHILD, WS_TABSTOP, WS_VISIBLE, BS_DEFPUSHBUTTON, MessageBoxExW, GetClientRect};
 use windows_sys::Win32::{
     Foundation::{GetLastError, HANDLE, HINSTANCE, HWND},
     System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION},
@@ -18,6 +19,7 @@ use windows_sys::Win32::{
 
 use crate::enums::app::App;
 use crate::tools::encoding::wide_char;
+use crate::windows::procedure::{self, window_proc};
 
 pub fn foreground_window() -> (App, Option<HWND>) {
     // Retrieves a handle to the foreground window
@@ -68,7 +70,6 @@ pub fn create_window() {
         lpszClassName: class_name,
         hIconSm: HICON::default(),
     };
-
     unsafe { RegisterClassExW(&mut wc) };
 
     let window = unsafe { CreateWindowExW(
@@ -86,24 +87,24 @@ pub fn create_window() {
         null_mut(),
     ) };
 
-    let hwndButton = unsafe {
-        CreateWindowExW(
-        0,  // Predefined class; Unicode assumed
-        wide_char("BUTTON"),      // Button text
-        null_mut(),  // Styles
-        WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON as u32,         // x position
-        10,         // y position
-        10,        // Button width
-        100,        // Button height
-        100,     // Parent window
-        window,
-        HMENU::default(),
-        wc.hInstance, // Pointer not needed.
-        null_mut(), // Pointer not needed.
-    ) };
+    // let hwndButton = unsafe {
+    //     CreateWindowExW(
+    //     0,
+    //     wide_char("BUTTON"), // Button class
+    //     null_mut(),  // Styles
+    //     WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON as u32,
+    //     10,
+    //     10,
+    //     100,
+    //     100,
+    //     window,
+    //     HMENU::default(),
+    //     wc.hInstance,
+    //     null_mut(),
+    // ) };
 
     let error = unsafe { GetLastError() };
-    println!("error: {:?}", error);
+    // println!("error: {:?}", error);
 
     unsafe { ShowWindow(window, SW_SHOW) };
     println!("window: {:?}", window);
@@ -118,13 +119,17 @@ pub fn create_window() {
         0,
         0) };
 
-    unsafe {
+        println!("last error: {:?}", unsafe { GetLastError() });
+        unsafe {
         loop {
             match GetMessageW(&mut msg, window, 0, 0) {
-                0 => break,
+                0 => {
+                    println!("error 0: {:?}", error);
+                    break
+                },
                 -1 => {
                     // Handle errors
-                    println!("error: {:?}", GetLastError());
+                    println!("error -1: {:?}", GetLastError());
                     break;
                 }
                 _ => {
@@ -133,28 +138,6 @@ pub fn create_window() {
                 }
 
             }
-        }
-    }
-}
-
-extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    match msg {
-        WM_DESTROY => {
-            // Handle window destruction
-            unsafe { PostQuitMessage(0) };
-            return 0;
-        }
-        WM_PAINT => {
-            // Handle window painting
-            let mut ps: PAINTSTRUCT = unsafe { std::mem::zeroed() };
-            let hdc = unsafe { BeginPaint(hwnd, &mut ps) };
-            // Perform painting operations using hdc
-            unsafe { EndPaint(hwnd, &ps) };
-            return 0;
-        }
-        _ => {
-            // Handle other messages or pass to default handler
-            return unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) };
         }
     }
 }
