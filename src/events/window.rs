@@ -89,10 +89,8 @@ pub fn create_window() {
         let error = GetLastError(); // Retrieves the calling thread's last-error code value. The last-error code is maintained on a per-thread basis. Multiple threads do not overwrite each other's last-error code.
         println!("error: {:?}", error);
 
-        /**
-         * The ShowWindow function sets the specified window's show state.
-         */
-        ShowWindow(window, SW_SHOW); // Activates the window and displays it in its current size and position.
+        
+        let window =ShowWindow(window, SW_SHOW); // Activates the window and displays it in its current size and position.
         println!("window: {:?}", window);
     }
 }
