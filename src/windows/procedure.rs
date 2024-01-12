@@ -2,7 +2,7 @@ use windows_sys::Win32::Graphics::Gdi::{PAINTSTRUCT, BeginPaint, CreatePen, PS_S
 use windows_sys::Win32::Foundation::{HWND, WPARAM, LPARAM, LRESULT};
 use windows_sys::Win32::UI::WindowsAndMessaging::{PostQuitMessage, GetClientRect, DefWindowProcW};
 
-pub(crate) extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     match msg {
         WM_DESTROY => {
             // Handle window destruction

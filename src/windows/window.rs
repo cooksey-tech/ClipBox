@@ -59,7 +59,7 @@ pub fn create_window() {
     let mut wc = WNDCLASSEXW {
         cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
         style: 0,
-        lpfnWndProc: Some(window_proc),
+        lpfnWndProc: Some(self::window_proc),
         cbClsExtra: 0,
         cbWndExtra: 0,
         hInstance: unsafe { GetModuleHandleW(null_mut()) } as HINSTANCE,
@@ -110,34 +110,34 @@ pub fn create_window() {
     println!("window: {:?}", window);
 
     // Process Windows messages
-    let mut msg: MSG = unsafe { std::mem::zeroed() };
+    // let mut msg: MSG = unsafe { std::mem::zeroed() };
 
-    let msgBox = unsafe { MessageBoxExW(
-        HWND::default(),
-        wide_char("Hello World!"),
-        wide_char("text"),
-        0,
-        0) };
+    // let msgBox = unsafe { MessageBoxExW(
+    //     HWND::default(),
+    //     wide_char("Hello World!"),
+    //     wide_char("text"),
+    //     0,
+    //     0) };
 
-        println!("last error: {:?}", unsafe { GetLastError() });
-        unsafe {
-        loop {
-            match GetMessageW(&mut msg, window, 0, 0) {
-                0 => {
-                    println!("error 0: {:?}", error);
-                    break
-                },
-                -1 => {
-                    // Handle errors
-                    println!("error -1: {:?}", GetLastError());
-                    break;
-                }
-                _ => {
-                    TranslateMessage(&msg);
-                    DispatchMessageW(&msg);
-                }
+    //     println!("last error: {:?}", unsafe { GetLastError() });
+    //     unsafe {
+    //     loop {
+    //         match GetMessageW(&mut msg, window, 0, 0) {
+    //             0 => {
+    //                 println!("error 0: {:?}", error);
+    //                 break
+    //             },
+    //             -1 => {
+    //                 // Handle errors
+    //                 println!("error -1: {:?}", GetLastError());
+    //                 break;
+    //             }
+    //             _ => {
+    //                 TranslateMessage(&msg);
+    //                 DispatchMessageW(&msg);
+    //             }
 
-            }
-        }
-    }
+    //         }
+    //     }
+    // }
 }
