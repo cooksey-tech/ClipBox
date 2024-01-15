@@ -19,7 +19,7 @@ use windows_sys::Win32::{
 
 use crate::enums::app::App;
 use crate::tools::encoding::wide_char;
-use crate::windows::procedure::{self, window_proc};
+// use crate::windows::procedure::{self, window_proc};
 
 pub fn foreground_window() -> (App, Option<HWND>) {
     // Retrieves a handle to the foreground window
@@ -87,21 +87,21 @@ pub fn create_window() {
         null_mut(),
     ) };
 
-    // let hwndButton = unsafe {
-    //     CreateWindowExW(
-    //     0,
-    //     wide_char("BUTTON"), // Button class
-    //     null_mut(),  // Styles
-    //     WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON as u32,
-    //     10,
-    //     10,
-    //     100,
-    //     100,
-    //     window,
-    //     HMENU::default(),
-    //     wc.hInstance,
-    //     null_mut(),
-    // ) };
+    let hwndButton = unsafe {
+        CreateWindowExW(
+        0,
+        wide_char("BUTTON"), // Button class
+        null_mut(),  // Styles
+        WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON as u32,
+        10,
+        10,
+        100,
+        100,
+        window,
+        HMENU::default(),
+        wc.hInstance,
+        null_mut(),
+    ) };
 
     let error = unsafe { GetLastError() };
     // println!("error: {:?}", error);
@@ -110,34 +110,77 @@ pub fn create_window() {
     println!("window: {:?}", window);
 
     // Process Windows messages
-    // let mut msg: MSG = unsafe { std::mem::zeroed() };
+    let mut msg: MSG = unsafe { std::mem::zeroed() };
 
-    // let msgBox = unsafe { MessageBoxExW(
-    //     HWND::default(),
-    //     wide_char("Hello World!"),
-    //     wide_char("text"),
-    //     0,
-    //     0) };
+    let msgBox = unsafe { MessageBoxExW(
+        HWND::default(),
+        wide_char("Hello World!"),
+        wide_char("text"),
+        0,
+        0) };
 
-    //     println!("last error: {:?}", unsafe { GetLastError() });
-    //     unsafe {
-    //     loop {
-    //         match GetMessageW(&mut msg, window, 0, 0) {
-    //             0 => {
-    //                 println!("error 0: {:?}", error);
-    //                 break
-    //             },
-    //             -1 => {
-    //                 // Handle errors
-    //                 println!("error -1: {:?}", GetLastError());
-    //                 break;
-    //             }
-    //             _ => {
-    //                 TranslateMessage(&msg);
-    //                 DispatchMessageW(&msg);
-    //             }
+        println!("last error: {:?}", unsafe { GetLastError() });
+        unsafe {
+        loop {
+            match GetMessageW(&mut msg, window, 0, 0) {
+                0 => {
+                    println!("error 0: {:?}", error);
+                    break
+                },
+                -1 => {
+                    // Handle errors
+                    println!("error -1: {:?}", GetLastError());
+                    break;
+                }
+                _ => {
+                    TranslateMessage(&msg);
+                    DispatchMessageW(&msg);
+                }
 
-    //         }
-    //     }
-    // }
+            }
+        }
+    }
+}
+
+
+pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    match msg {
+        WM_DESTROY => {
+            // Handle window destruction
+            unsafe { PostQuitMessage(0) };
+            return 0;
+        }
+        WM_PAINT => {
+            // Handle window painting
+            let mut ps: PAINTSTRUCT = unsafe { std::mem::zeroed() };
+            let hdc = unsafe { BeginPaint(hwnd, &mut ps) };
+
+            let pen = unsafe {
+                CreatePen(PS_SOLID, 1, 0)
+            };
+            let old_pen = unsafe {
+                SelectObject(hdc, pen)
+            };
+
+            // dimesions of button
+            let mut rect = unsafe { std::mem::zeroed() };
+            unsafe { GetClientRect(hwnd, &mut rect) };
+
+            // draw a circle for the button
+            unsafe { Ellipse(hdc, rect.left, rect.top, rect.right, rect.bottom) };
+
+            // Clean up
+            unsafe {
+                SelectObject(hdc, old_pen);
+                DeleteObject(pen);
+                EndPaint(hwnd, &ps);
+            }
+
+            return 0;
+        }
+        _ => {
+            // Handle other messages or pass to default handler
+            return unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) };
+        }
+    }
 }
