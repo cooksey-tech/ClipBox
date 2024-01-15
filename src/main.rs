@@ -5,11 +5,16 @@ use windows_sys::Win32::{
     Foundation::{GetLastError, HINSTANCE}
 };
 
+use crate::windows::window;
+
 mod events;
 mod enums;
 mod constants;
 mod storage;
-pub mod settings;
+mod settings;
+mod tools;
+mod windows;
+
 
 fn main() {
     // Sent when a drop-down menu or submenu is about to become active. This allows an application to modify the menu before it is displayed, without changing the entire menu.
@@ -34,24 +39,14 @@ fn main() {
     println!("OpenClipboard: {:?}", cb);
 
     events::mouse::lisenter();
-    let (app, handle) = events::window::foreground_window();
+    let (app, handle) = window::foreground_window();
     match (app, handle)  {
         (enums::app::App::FileExplorer, Some(_)) => println!("FileExplorer"),
         _ => println!("Unsupported"),
     }
 
-    crate::storage::create_box_dir();
-    events::window::create_window();
+    storage::create_box_dir();
+    window::create_window();
 
-    loop {
-        println!("Enter a message (or 'exit' to quit):");
 
-        let mut input = String::new();
-        std::io::stdin().read_line(&mut input).unwrap();
-
-        if input.trim() == "exit" {
-            break;
-        }
-    println!("You entered: {}", input);
-    }
 }
