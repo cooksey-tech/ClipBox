@@ -7,7 +7,6 @@ pub fn file_drop(hdrop: HDROP) {
     // get number of files droped
     // 0xFFFFFFFF represents all files
     unsafe { file_count = DragQueryFileW(hdrop, 0xFFFFFFFF, null_mut(), 0) };
-    println!("file_count: {:?}", file_count);
 
     for i in 0..file_count {
         let mut file_name: [u16; 256] = [0; 256];
@@ -18,7 +17,7 @@ pub fn file_drop(hdrop: HDROP) {
         println!("file_name_string: {:?}", file_name_string);
 
         // copy file to box directory
-        
+
     }
     // release memory allocated for HDROP
     unsafe { DragFinish(hdrop) };
