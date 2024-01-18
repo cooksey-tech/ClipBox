@@ -10,10 +10,10 @@ use crate::windows::window;
 mod events;
 mod enums;
 mod constants;
-mod storage;
 mod settings;
 mod tools;
 mod windows;
+mod storage;
 
 
 fn main() {
@@ -45,7 +45,7 @@ fn main() {
         _ => println!("Unsupported"),
     }
 
-    storage::create_box_dir();
+    storage::paths::create_box_dir();
     window::create_window();
 
 

@@ -19,6 +19,7 @@ use windows_sys::Win32::{
 use windows_sys::Win32::UI::Shell::{DragAcceptFiles, HDROP, DragQueryFileW, DragFinish};
 
 use crate::enums::app::App;
+use crate::storage::files::file_drop;
 use crate::tools::encoding::wide_char;
 // use crate::windows::procedure::{self, window_proc};
 
@@ -143,26 +144,6 @@ pub fn create_window() {
         }
     }
 }
-
-pub fn file_drop(hdrop: HDROP) {
-    let mut file_count = 0;
-    // get number of files droped
-    // 0xFFFFFFFF represents all files
-    unsafe { file_count = DragQueryFileW(hdrop, 0xFFFFFFFF, null_mut(), 0) };
-    println!("file_count: {:?}", file_count);
-
-    for i in 0..file_count {
-        let mut file_name: [u16; 256] = [0; 256];
-        // get file name
-        unsafe { DragQueryFileW(hdrop, i, &mut file_name as *mut u16, 256) };
-        let file_lossy = String::from_utf16_lossy(&file_name);
-        let file_name_string = file_lossy.trim_end_matches('\0');
-        println!("file_name_string: {:?}", file_name_string);
-    }
-    // release memory allocated for HDROP
-    unsafe { DragFinish(hdrop) };
-}
-
 
 pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     match msg {
