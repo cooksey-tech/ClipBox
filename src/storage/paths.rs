@@ -1,6 +1,6 @@
 use std::{path::PathBuf, env};
 
-use crate::constants;
+use crate::{constants, windows::window};
 
 
 // Returns the base path for the application
@@ -31,9 +31,12 @@ impl ClipBox {
         std::fs::create_dir(&base_path().join(&box_name))
             .expect("Failed to create box directory");
 
-        ClipBox {
+        let clip_box = ClipBox {
             path: base_path().join(box_name)
-        }
+        };
+        Self::create_window(&clip_box);
+
+        clip_box
     }
 
     // Copy a file (or folder) to the box directory
@@ -47,5 +50,9 @@ impl ClipBox {
         // Deletes the box directory
         std::fs::remove_dir_all(&self.path)
             .expect("Failed to delete box directory");
+    }
+
+    fn create_window(&self) {
+        window::create_window(&self);
     }
 }

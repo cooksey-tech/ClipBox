@@ -20,6 +20,7 @@ use windows_sys::Win32::UI::Shell::{DragAcceptFiles, HDROP, DragQueryFileW, Drag
 
 use crate::enums::app::App;
 use crate::storage::files::file_drop;
+use crate::storage::paths::ClipBox;
 use crate::tools::encoding::wide_char;
 // use crate::windows::procedure::{self, window_proc};
 
@@ -52,7 +53,7 @@ pub fn foreground_window() -> (App, Option<HWND>) {
     }
 }
 
-pub fn create_window() {
+pub fn create_window(clip_box: &ClipBox) {
 
     // Convert class_name to null-terminated wide string
     let class_name = wide_char("ClipBox");
