@@ -6,7 +6,7 @@ use std::ptr::null_mut;
 use windows_sys::Win32::Foundation::{WPARAM, LPARAM, LRESULT};
 use windows_sys::Win32::Graphics::Gdi::{HBRUSH, PAINTSTRUCT, BeginPaint, EndPaint, CreatePen, PS_SOLID, SelectObject, Ellipse, DeleteObject};
 use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleExW, GetModuleHandleW};
-use windows_sys::Win32::UI::WindowsAndMessaging::{HICON, HCURSOR, HMENU, PostQuitMessage, DefWindowProcW, WM_PAINT, WM_DESTROY, MSG, GetMessageW, TranslateMessage, DispatchMessageW, WS_EX_APPWINDOW, WS_EX_ACCEPTFILES, WS_CHILD, WS_TABSTOP, WS_VISIBLE, BS_DEFPUSHBUTTON, MessageBoxExW, GetClientRect};
+use windows_sys::Win32::UI::WindowsAndMessaging::{HICON, HCURSOR, HMENU, PostQuitMessage, DefWindowProcW, WM_PAINT, WM_DESTROY, MSG, GetMessageW, TranslateMessage, DispatchMessageW, WS_EX_APPWINDOW, WS_EX_ACCEPTFILES, WS_CHILD, WS_TABSTOP, WS_VISIBLE, BS_DEFPUSHBUTTON, MessageBoxExW, GetClientRect, WM_DROPFILES};
 use windows_sys::Win32::{
     Foundation::{GetLastError, HANDLE, HINSTANCE, HWND},
     System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION},
@@ -16,8 +16,10 @@ use windows_sys::Win32::{
         WS_OVERLAPPEDWINDOW,
     },
 };
+use windows_sys::Win32::UI::Shell::{DragAcceptFiles, HDROP, DragQueryFileW, DragFinish};
 
 use crate::enums::app::App;
+use crate::storage::files::file_drop;
 use crate::tools::encoding::wide_char;
 // use crate::windows::procedure::{self, window_proc};
 
@@ -79,29 +81,30 @@ pub fn create_window() {
         WS_EX_ACCEPTFILES, // Window to accept drag and drop
         CW_USEDEFAULT,
         CW_USEDEFAULT,
-        CW_USEDEFAULT,
-        CW_USEDEFAULT,
+        300,
+        300,
         HWND::default(),
         HMENU::default(),
         wc.hInstance,
         null_mut(),
     ) };
+    unsafe { DragAcceptFiles(window, true as i32) };
 
-    let hwndButton = unsafe {
-        CreateWindowExW(
-        0,
-        wide_char("BUTTON"), // Button class
-        null_mut(),  // Styles
-        WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON as u32,
-        10,
-        10,
-        100,
-        100,
-        window,
-        HMENU::default(),
-        wc.hInstance,
-        null_mut(),
-    ) };
+    // let hwndButton = unsafe {
+    //     CreateWindowExW(
+    //     0,
+    //     wide_char("BUTTON"), // Button class
+    //     null_mut(),  // Styles
+    //     WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON as u32,
+    //     10,
+    //     10,
+    //     100,
+    //     100,
+    //     window,
+    //     HMENU::default(),
+    //     wc.hInstance,
+    //     null_mut(),
+    // ) };
 
     let error = unsafe { GetLastError() };
     // println!("error: {:?}", error);
@@ -112,15 +115,15 @@ pub fn create_window() {
     // Process Windows messages
     let mut msg: MSG = unsafe { std::mem::zeroed() };
 
-    let msgBox = unsafe { MessageBoxExW(
-        HWND::default(),
-        wide_char("Hello World!"),
-        wide_char("text"),
-        0,
-        0) };
+    // let msgBox = unsafe { MessageBoxExW(
+    //     HWND::default(),
+    //     wide_char("Hello World!"),
+    //     wide_char("text"),
+    //     0,
+    //     0) };
 
-        println!("last error: {:?}", unsafe { GetLastError() });
-        unsafe {
+    println!("last error: {:?}", unsafe { GetLastError() });
+    unsafe {
         loop {
             match GetMessageW(&mut msg, window, 0, 0) {
                 0 => {
@@ -142,13 +145,18 @@ pub fn create_window() {
     }
 }
 
-
 pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     match msg {
         WM_DESTROY => {
             // Handle window destruction
             unsafe { PostQuitMessage(0) };
             return 0;
+        }
+        WM_DROPFILES => {
+            let hdrop = wparam as HDROP;
+            println!("WM_DROPFILES: {:?}", hdrop);
+            file_drop(hdrop);
+            hdrop
         }
         WM_PAINT => {
             // Handle window painting
