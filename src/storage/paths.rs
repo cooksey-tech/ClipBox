@@ -1,4 +1,4 @@
-use std::{path::{PathBuf, Path}, env};
+use std::{path::{PathBuf, Path}, env, fmt::Result};
 
 use crate::constants;
 
@@ -15,10 +15,26 @@ pub fn base_path() -> PathBuf {
     return app_data_dir;
 }
 
-// Creates a directory for a new box being created
-pub fn create_box_dir() {
-    let timestamp = std::time::SystemTime::now();
-    let box_name = format!("box_{}", timestamp.duration_since(std::time::UNIX_EPOCH).unwrap().as_secs());
+pub struct ClipBox {
+    pub path: PathBuf,
+}
 
-    std::fs::create_dir(&base_path().join(box_name)).expect("Failed to create box directory");
+impl ClipBox {
+    // Creates a new ClipBox instance
+    pub fn new() -> ClipBox {
+        // Creates a directory for a new box being created
+        let timestamp = std::time::SystemTime::now();
+        let box_name = format!("box_{}", timestamp.duration_since(std::time::UNIX_EPOCH).unwrap().as_secs());
+
+        std::fs::create_dir(&base_path().join(&box_name)).expect("Failed to create box directory");
+
+        ClipBox {
+            path: base_path().join(box_name)
+        }
+    }
+
+    pub fn delete(self) {
+        // Deletes the box directory
+        std::fs::remove_dir_all(&self.path).expect("Failed to delete box directory");
+    }
 }

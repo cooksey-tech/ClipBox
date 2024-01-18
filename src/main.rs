@@ -5,7 +5,7 @@ use windows_sys::Win32::{
     Foundation::{GetLastError, HINSTANCE}
 };
 
-use crate::windows::window;
+use crate::{windows::window, storage::paths::ClipBox};
 
 mod events;
 mod enums;
@@ -45,7 +45,9 @@ fn main() {
         _ => println!("Unsupported"),
     }
 
-    storage::paths::create_box_dir();
+    // create a test box
+    let clip_box = ClipBox::new();
+    println!("clip_box: {:?}", clip_box.path);
     window::create_window();
 
 

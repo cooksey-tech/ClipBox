@@ -16,6 +16,9 @@ pub fn file_drop(hdrop: HDROP) {
         let file_lossy = String::from_utf16_lossy(&file_name);
         let file_name_string = file_lossy.trim_end_matches('\0');
         println!("file_name_string: {:?}", file_name_string);
+
+        // copy file to box directory
+        
     }
     // release memory allocated for HDROP
     unsafe { DragFinish(hdrop) };
