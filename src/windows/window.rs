@@ -16,6 +16,7 @@ use windows_sys::Win32::{
         WS_OVERLAPPEDWINDOW,
     },
 };
+use windows_sys::Win32::UI::Shell::{DragAcceptFiles};
 
 use crate::enums::app::App;
 use crate::tools::encoding::wide_char;
@@ -79,13 +80,14 @@ pub fn create_window() {
         WS_EX_ACCEPTFILES, // Window to accept drag and drop
         CW_USEDEFAULT,
         CW_USEDEFAULT,
-        CW_USEDEFAULT,
-        CW_USEDEFAULT,
+        300,
+        300,
         HWND::default(),
         HMENU::default(),
         wc.hInstance,
         null_mut(),
     ) };
+    unsafe { DragAcceptFiles(window, true as i32) };
 
     let hwndButton = unsafe {
         CreateWindowExW(
