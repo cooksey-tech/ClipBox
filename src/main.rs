@@ -1,11 +1,11 @@
-use std::{ptr::{null_mut, null}, os::raw::c_void};
+use std::{ptr::{null_mut, null}, os::raw::c_void, sync::{Arc, Mutex}};
 use windows_sys::Win32::{
     UI::WindowsAndMessaging::{WM_INITMENUPOPUP, CreateWindowExW, ShowWindow, SW_SHOW, CreateWindowExA, WS_CHILD, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, RegisterClassA, WNDCLASSEXW, WNDCLASSA, WNDCLASSEXA, WNDPROC},
     System::DataExchange::{GetClipboardData, OpenClipboard, EmptyClipboard}, Foundation::{HWND, HANDLE},
     Foundation::{GetLastError, HINSTANCE}
 };
 
-use crate::{windows::window, storage::paths::ClipBox};
+use crate::{windows::window, storage::{paths::ClipBox, state::SharedState}};
 
 mod events;
 mod enums;
@@ -47,8 +47,14 @@ fn main() {
 
     // create a test box
     let clip_box = ClipBox::new();
-    println!("clip_box: {:?}", clip_box.path);
-    window::create_window();
+    // create a shared state
+    let state = SharedState::new(clip_box);
+    
+    // println!("clip_box: {:?}", state.clip_box.lock()
+    //     .expect("Unable to block local thread").path);
 
+    // let state_ptr = Arc::into_raw(state.clip_box.clone());
+    // println!("state_ptr: {:?}", state_ptr);
+    // println!("clip_box: {:?}", clip_box.path);
 
 }
