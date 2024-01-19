@@ -53,6 +53,6 @@ impl ClipBox {
     }
 
     fn create_window(&self) {
-        window::create_window(&self);
+        window::create_window(self);
     }
 }

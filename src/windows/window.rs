@@ -3,10 +3,11 @@ use std::ffi::{OsStr, OsString};
 use std::iter::once;
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
 use std::ptr::null_mut;
+use std::sync::{Arc, Mutex};
 use windows_sys::Win32::Foundation::{WPARAM, LPARAM, LRESULT};
 use windows_sys::Win32::Graphics::Gdi::{HBRUSH, PAINTSTRUCT, BeginPaint, EndPaint, CreatePen, PS_SOLID, SelectObject, Ellipse, DeleteObject};
 use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleExW, GetModuleHandleW};
-use windows_sys::Win32::UI::WindowsAndMessaging::{HICON, HCURSOR, HMENU, PostQuitMessage, DefWindowProcW, WM_PAINT, WM_DESTROY, MSG, GetMessageW, TranslateMessage, DispatchMessageW, WS_EX_APPWINDOW, WS_EX_ACCEPTFILES, WS_CHILD, WS_TABSTOP, WS_VISIBLE, BS_DEFPUSHBUTTON, MessageBoxExW, GetClientRect, WM_DROPFILES};
+use windows_sys::Win32::UI::WindowsAndMessaging::{HICON, HCURSOR, HMENU, PostQuitMessage, DefWindowProcW, WM_PAINT, WM_DESTROY, MSG, GetMessageW, TranslateMessage, DispatchMessageW, WS_EX_APPWINDOW, WS_EX_ACCEPTFILES, WS_CHILD, WS_TABSTOP, WS_VISIBLE, BS_DEFPUSHBUTTON, MessageBoxExW, GetClientRect, WM_DROPFILES, SetWindowLongPtrW, GWLP_USERDATA, GetWindowLongPtrW};
 use windows_sys::Win32::{
     Foundation::{GetLastError, HANDLE, HINSTANCE, HWND},
     System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION},
@@ -122,6 +123,12 @@ pub fn create_window(clip_box: &ClipBox) {
     //     wide_char("text"),
     //     0,
     //     0) };
+    let clip_box_ptr = Arc::into_raw(Arc::new(Mutex::new(clip_box)));
+    // println!("clip_box_ptr: {:?}", clip_box_ptr);
+
+    let _ = unsafe { SetWindowLongPtrW(window, GWLP_USERDATA, clip_box_ptr as isize) };
+    // let clip_box = unsafe { Arc::from_raw(clip_box_ptr) };
+    // println!("clip_box: {:?}", clip_box.lock().unwrap().path);
 
     println!("last error: {:?}", unsafe { GetLastError() });
     unsafe {
@@ -156,7 +163,15 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
         WM_DROPFILES => {
             let hdrop = wparam as HDROP;
             println!("WM_DROPFILES: {:?}", hdrop);
-            file_drop(hdrop);
+
+            let clip_box_ptr = unsafe{
+                GetWindowLongPtrW(hwnd, GWLP_USERDATA)
+            } as *mut Arc<Mutex<ClipBox>>;
+            // println!("clip_box_ptr: {:?}", clip_box_ptr);
+            // let clip_box = unsafe { Arc::from_raw(clip_box_ptr) };
+            // println!("clip_box: {:?}", clip_box.lock().unwrap().path);
+
+            // file_drop(hdrop, clip_box_ptr);
             hdrop
         }
         WM_PAINT => {

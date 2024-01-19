@@ -49,9 +49,12 @@ fn main() {
     let clip_box = ClipBox::new();
     // create a shared state
     let state = SharedState::new(clip_box);
-    println!("clip_box: {:?}", state.clip_box.lock()
-        .expect("Unable to block local thread").path);
+    
+    // println!("clip_box: {:?}", state.clip_box.lock()
+    //     .expect("Unable to block local thread").path);
 
+    // let state_ptr = Arc::into_raw(state.clip_box.clone());
+    // println!("state_ptr: {:?}", state_ptr);
     // println!("clip_box: {:?}", clip_box.path);
 
 }
