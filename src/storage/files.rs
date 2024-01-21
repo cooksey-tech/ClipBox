@@ -1,8 +1,8 @@
-use std::{ptr::null_mut, sync::{Arc, Mutex}};
+use std::{ptr::null_mut, sync::{Arc, Mutex, MutexGuard}, path::PathBuf};
 use windows_sys::Win32::UI::Shell::{HDROP, DragQueryFileW, DragFinish};
 use crate::storage::paths::ClipBox;
 
-pub fn file_drop(hdrop: HDROP, clip_box: *const Mutex<ClipBox>) {
+pub fn file_drop(hdrop: HDROP, clip_box: MutexGuard<ClipBox>) {
     let mut file_count = 0;
     // get number of files droped
     // 0xFFFFFFFF represents all files
@@ -17,7 +17,8 @@ pub fn file_drop(hdrop: HDROP, clip_box: *const Mutex<ClipBox>) {
         println!("file_name_string: {:?}", file_name_string);
 
         // copy file to box directory
-        println!("clip_box: {:?}", clip_box);
+        println!("clip_box: {:?}", clip_box.path);
+        clip_box.add_file(&PathBuf::from(file_name_string));
     }
     // release memory allocated for HDROP
     unsafe { DragFinish(hdrop) };

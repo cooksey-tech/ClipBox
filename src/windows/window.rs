@@ -1,6 +1,8 @@
+use std::borrow::Borrow;
 use std::f32::consts::E;
 use std::ffi::{OsStr, OsString};
 use std::iter::once;
+use std::ops::Deref;
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
 use std::ptr::null_mut;
 use std::sync::{Arc, Mutex};
@@ -55,6 +57,10 @@ pub fn foreground_window() -> (App, Option<HWND>) {
 }
 
 pub fn create_window(clip_box: &ClipBox) {
+
+    // get the pointer to the clip_box
+    let clip_box_ptr = Arc::into_raw(Arc::new(Mutex::new(clip_box)));
+    println!("clip_box_ptr: {:?}", clip_box_ptr);
 
     // Convert class_name to null-terminated wide string
     let class_name = wide_char("ClipBox");
@@ -123,10 +129,13 @@ pub fn create_window(clip_box: &ClipBox) {
     //     wide_char("text"),
     //     0,
     //     0) };
-    let clip_box_ptr = Arc::into_raw(Arc::new(Mutex::new(clip_box)));
+
+    // let clip_box_ptr = Arc::into_raw(Arc::new(Mutex::new(clip_box)));
     // println!("clip_box_ptr: {:?}", clip_box_ptr);
 
     let _ = unsafe { SetWindowLongPtrW(window, GWLP_USERDATA, clip_box_ptr as isize) };
+    unsafe { Arc::from_raw(clip_box_ptr) };
+
     // let clip_box = unsafe { Arc::from_raw(clip_box_ptr) };
     // println!("clip_box: {:?}", clip_box.lock().unwrap().path);
 
@@ -162,16 +171,17 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
         }
         WM_DROPFILES => {
             let hdrop = wparam as HDROP;
-            println!("WM_DROPFILES: {:?}", hdrop);
+            // println!("WM_DROPFILES: {:?}", hdrop);
 
-            let clip_box_ptr = unsafe{
+            let window_ptr = unsafe{
                 GetWindowLongPtrW(hwnd, GWLP_USERDATA)
-            } as *mut Arc<Mutex<ClipBox>>;
-            // println!("clip_box_ptr: {:?}", clip_box_ptr);
-            // let clip_box = unsafe { Arc::from_raw(clip_box_ptr) };
-            // println!("clip_box: {:?}", clip_box.lock().unwrap().path);
+            };
+            let clip_box_ptr = window_ptr as *mut Arc<Mutex<ClipBox>>;
+            println!("clip_box_ptr: {:?}", clip_box_ptr);
 
-            // file_drop(hdrop, clip_box_ptr);
+            let clip_box = unsafe { Arc::from_raw(clip_box_ptr) };
+
+            // file_drop(hdrop, clip_box.lock().unwrap());
             hdrop
         }
         WM_PAINT => {
