@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 use windows_sys::Win32::Foundation::{WPARAM, LPARAM, LRESULT};
 use windows_sys::Win32::Graphics::Gdi::{HBRUSH, PAINTSTRUCT, BeginPaint, EndPaint, CreatePen, PS_SOLID, SelectObject, Ellipse, DeleteObject};
 use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleExW, GetModuleHandleW};
-use windows_sys::Win32::UI::WindowsAndMessaging::{HICON, HCURSOR, HMENU, PostQuitMessage, DefWindowProcW, WM_PAINT, WM_DESTROY, MSG, GetMessageW, TranslateMessage, DispatchMessageW, WS_EX_APPWINDOW, WS_EX_ACCEPTFILES, WS_CHILD, WS_TABSTOP, WS_VISIBLE, BS_DEFPUSHBUTTON, MessageBoxExW, GetClientRect, WM_DROPFILES, SetWindowLongPtrW, GWLP_USERDATA, GetWindowLongPtrW, WM_CREATE};
+use windows_sys::Win32::UI::WindowsAndMessaging::{HICON, HCURSOR, HMENU, PostQuitMessage, DefWindowProcW, WM_PAINT, WM_DESTROY, MSG, GetMessageW, TranslateMessage, DispatchMessageW, WS_EX_APPWINDOW, WS_EX_ACCEPTFILES, WS_CHILD, WS_TABSTOP, WS_VISIBLE, BS_DEFPUSHBUTTON, MessageBoxExW, GetClientRect, WM_DROPFILES, SetWindowLongPtrW, GWLP_USERDATA, GetWindowLongPtrW, WM_CREATE, CREATESTRUCTW};
 use windows_sys::Win32::{
     Foundation::{GetLastError, HANDLE, HINSTANCE, HWND},
     System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION},
@@ -94,7 +94,7 @@ pub fn create_window(clip_box: &ClipBox) {
         HWND::default(),
         HMENU::default(),
         wc.hInstance,
-        clip_box_ptr as *mut std::os::raw::c_void,
+        clip_box_ptr as *const std::os::raw::c_void,
     ) };
     unsafe { DragAcceptFiles(window, true as i32) };
 
@@ -114,7 +114,7 @@ pub fn create_window(clip_box: &ClipBox) {
     //     null_mut(),
     // ) };
 
-    let _ = unsafe { SetWindowLongPtrW(window, GWLP_USERDATA, clip_box_ptr as isize) };
+    // let _ = unsafe { SetWindowLongPtrW(window, GWLP_USERDATA, clip_box_ptr as isize) };
 
     let error = unsafe { GetLastError() };
     // println!("error: {:?}", error);
@@ -163,14 +163,15 @@ pub fn create_window(clip_box: &ClipBox) {
 }
 
 pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    // println!("Processing message: {}", msg);
     match msg {
         WM_CREATE => {
             // Handle window creation
             println!("WM_CREATE");
-            println!("lparam: {:?}", lparam);
-
-            let arc_ptr = lparam as *const Arc<Mutex<ClipBox>>;
-            println!("arc_ptr: {:?}", arc_ptr);
+            let createstruct = unsafe {
+                 &*(lparam as *const CREATESTRUCTW)
+            };
+            let arc_ptr = createstruct.lpCreateParams as *const Arc<Mutex<ClipBox>>;
 
             if arc_ptr as usize % std::mem::align_of::<Arc<Mutex<ClipBox>>>() != 0 {
                 panic!("arc_ptr is not properly aligned");
@@ -181,21 +182,50 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             // let path = &clip_box.lock();
 
             // println!("clip_box_path: {:?}", clip_box_path.lock().unwrap().path);
+            unsafe {
+                SetWindowLongPtrW(hwnd, GWLP_USERDATA, arc_ptr as isize);
+            }
+
             return 0;
         }
         WM_DESTROY => {
             // Handle window destruction
+            let clip_box_ptr = unsafe {
+                GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut Arc<Mutex<ClipBox>>
+            };
+            let _ = unsafe { Box::from_raw(clip_box_ptr) };  // Deallocate the Arc and the data
             unsafe { PostQuitMessage(0) };
             return 0;
         }
         WM_DROPFILES => {
             let hdrop = wparam as HDROP;
-            // println!("WM_DROPFILES: {:?}", hdrop);
+            let file_count = unsafe { DragQueryFileW(hdrop, 0xFFFFFFFF, null_mut(), 0) };
+            let arc_ptr = unsafe {
+                GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *const Arc<Mutex<ClipBox>>
+            };
+            println!("arc_ptr: {:?}", arc_ptr);
+            if arc_ptr as usize % std::mem::align_of::<Arc<Mutex<ClipBox>>>() != 0 {
+                panic!("arc_ptr is not properly aligned");
+            }
 
-            println!("lparam: {:?}", lparam);
+            assert!(!arc_ptr.is_null(), "clip_box_ptr is null");
 
-            // file_drop(hdrop, clip_box.lock().unwrap());
-            hdrop
+            let clip_box = unsafe {
+                Arc::clone(&*arc_ptr)
+            };
+            println!("clip_box: {:?}", clip_box.lock().unwrap().path);
+            file_drop(hdrop, clip_box.lock().unwrap());
+
+
+            for i in 0..file_count {
+                let mut file_name: [u16; 256] = [0; 256];
+                unsafe { DragQueryFileW(hdrop, i, &mut file_name as *mut u16, 256) };
+                let file_lossy = String::from_utf16_lossy(&file_name);
+                let file_name_string = file_lossy.trim_end_matches('\0');
+                println!("file_name_string: {:?}", file_name_string);
+            }
+            unsafe { DragFinish(hdrop) };
+            0
         }
         WM_PAINT => {
             // Handle window painting
