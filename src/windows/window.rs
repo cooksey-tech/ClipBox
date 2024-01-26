@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 use windows_sys::Win32::Foundation::{WPARAM, LPARAM, LRESULT};
 use windows_sys::Win32::Graphics::Gdi::{HBRUSH, PAINTSTRUCT, BeginPaint, EndPaint, CreatePen, PS_SOLID, SelectObject, Ellipse, DeleteObject};
 use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleExW, GetModuleHandleW};
-use windows_sys::Win32::UI::WindowsAndMessaging::{HICON, HCURSOR, HMENU, PostQuitMessage, DefWindowProcW, WM_PAINT, WM_DESTROY, MSG, GetMessageW, TranslateMessage, DispatchMessageW, WS_EX_APPWINDOW, WS_EX_ACCEPTFILES, WS_CHILD, WS_TABSTOP, WS_VISIBLE, BS_DEFPUSHBUTTON, MessageBoxExW, GetClientRect, WM_DROPFILES, SetWindowLongPtrW, GWLP_USERDATA, GetWindowLongPtrW, WM_CREATE, CREATESTRUCTW};
+use windows_sys::Win32::UI::WindowsAndMessaging::{ChangeWindowMessageFilterEx, DefWindowProcW, DispatchMessageW, GetClientRect, GetMessageW, GetWindowLongPtrW, MessageBoxExW, PostQuitMessage, SetWindowLongPtrW, TranslateMessage, BS_DEFPUSHBUTTON, CREATESTRUCTW, GWLP_USERDATA, HCURSOR, HICON, HMENU, MSG, MSGFLT_ALLOW, WM_COPYDATA, WM_CREATE, WM_DESTROY, WM_DROPFILES, WM_PAINT, WS_CHILD, WS_EX_ACCEPTFILES, WS_EX_APPWINDOW, WS_TABSTOP, WS_VISIBLE};
 use windows_sys::Win32::{
     Foundation::{GetLastError, HANDLE, HINSTANCE, HWND},
     System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION},
@@ -96,6 +96,31 @@ pub fn create_window(clip_box: &ClipBox) {
         wc.hInstance,
         clip_box_ptr as *const std::os::raw::c_void,
     ) };
+
+    // Ensure functionality when running as admin
+    if window <= 0 {
+        panic!("Failed to create window");
+    } else {
+        // Allow WM_DROPFILES messages
+        let success = unsafe { ChangeWindowMessageFilterEx(window, WM_DROPFILES, MSGFLT_ALLOW, std::ptr::null_mut()) };
+        if success == 0 {
+            panic!("Failed to change message filter for WM_DROPFILES");
+        }
+
+        // Allow WM_COPYDATA messages
+        let success = unsafe { ChangeWindowMessageFilterEx(window, WM_COPYDATA, MSGFLT_ALLOW, std::ptr::null_mut()) };
+        if success == 0 {
+            panic!("Failed to change message filter for WM_COPYDATA");
+        }
+
+        // Allow 0x0049 messages
+        let success = unsafe { ChangeWindowMessageFilterEx(window, 0x0049, MSGFLT_ALLOW, std::ptr::null_mut()) };
+        if success == 0 {
+            panic!("Failed to change message filter for 0x0049");
+        }
+    }
+
+
     unsafe { DragAcceptFiles(window, true as i32) };
 
     // let hwndButton = unsafe {
@@ -198,6 +223,7 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             return 0;
         }
         WM_DROPFILES => {
+            println!("WM_DROPFILES");
             let hdrop = wparam as HDROP;
             let file_count = unsafe { DragQueryFileW(hdrop, 0xFFFFFFFF, null_mut(), 0) };
             let arc_ptr = unsafe {
