@@ -1,13 +1,15 @@
+use std::borrow::Borrow;
 use std::f32::consts::E;
 use std::ffi::{OsStr, OsString};
 use std::iter::once;
+use std::ops::Deref;
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
 use std::ptr::null_mut;
 use std::sync::{Arc, Mutex};
 use windows_sys::Win32::Foundation::{WPARAM, LPARAM, LRESULT};
 use windows_sys::Win32::Graphics::Gdi::{HBRUSH, PAINTSTRUCT, BeginPaint, EndPaint, CreatePen, PS_SOLID, SelectObject, Ellipse, DeleteObject};
 use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleExW, GetModuleHandleW};
-use windows_sys::Win32::UI::WindowsAndMessaging::{HICON, HCURSOR, HMENU, PostQuitMessage, DefWindowProcW, WM_PAINT, WM_DESTROY, MSG, GetMessageW, TranslateMessage, DispatchMessageW, WS_EX_APPWINDOW, WS_EX_ACCEPTFILES, WS_CHILD, WS_TABSTOP, WS_VISIBLE, BS_DEFPUSHBUTTON, MessageBoxExW, GetClientRect, WM_DROPFILES, SetWindowLongPtrW, GWLP_USERDATA, GetWindowLongPtrW};
+use windows_sys::Win32::UI::WindowsAndMessaging::{HICON, HCURSOR, HMENU, PostQuitMessage, DefWindowProcW, WM_PAINT, WM_DESTROY, MSG, GetMessageW, TranslateMessage, DispatchMessageW, WS_EX_APPWINDOW, WS_EX_ACCEPTFILES, WS_CHILD, WS_TABSTOP, WS_VISIBLE, BS_DEFPUSHBUTTON, MessageBoxExW, GetClientRect, WM_DROPFILES, SetWindowLongPtrW, GWLP_USERDATA, GetWindowLongPtrW, WM_CREATE, CREATESTRUCTW};
 use windows_sys::Win32::{
     Foundation::{GetLastError, HANDLE, HINSTANCE, HWND},
     System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION},
@@ -56,6 +58,10 @@ pub fn foreground_window() -> (App, Option<HWND>) {
 
 pub fn create_window(clip_box: &ClipBox) {
 
+    // get the pointer to the clip_box
+    let clip_box_ptr = Arc::into_raw(Arc::new(Mutex::new(clip_box)));
+    println!("clip_box_ptr: {:?}", clip_box_ptr);
+
     // Convert class_name to null-terminated wide string
     let class_name = wide_char("ClipBox");
 
@@ -88,7 +94,7 @@ pub fn create_window(clip_box: &ClipBox) {
         HWND::default(),
         HMENU::default(),
         wc.hInstance,
-        null_mut(),
+        clip_box_ptr as *const std::os::raw::c_void,
     ) };
     unsafe { DragAcceptFiles(window, true as i32) };
 
@@ -108,9 +114,10 @@ pub fn create_window(clip_box: &ClipBox) {
     //     null_mut(),
     // ) };
 
+    // let _ = unsafe { SetWindowLongPtrW(window, GWLP_USERDATA, clip_box_ptr as isize) };
+
     let error = unsafe { GetLastError() };
     // println!("error: {:?}", error);
-
     unsafe { ShowWindow(window, SW_SHOW) };
     println!("window: {:?}", window);
 
@@ -123,10 +130,12 @@ pub fn create_window(clip_box: &ClipBox) {
     //     wide_char("text"),
     //     0,
     //     0) };
-    let clip_box_ptr = Arc::into_raw(Arc::new(Mutex::new(clip_box)));
+
+    // let clip_box_ptr = Arc::into_raw(Arc::new(Mutex::new(clip_box)));
     // println!("clip_box_ptr: {:?}", clip_box_ptr);
 
-    let _ = unsafe { SetWindowLongPtrW(window, GWLP_USERDATA, clip_box_ptr as isize) };
+    // unsafe { Arc::from_raw(clip_box_ptr) };
+
     // let clip_box = unsafe { Arc::from_raw(clip_box_ptr) };
     // println!("clip_box: {:?}", clip_box.lock().unwrap().path);
 
@@ -154,25 +163,69 @@ pub fn create_window(clip_box: &ClipBox) {
 }
 
 pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    // println!("Processing message: {}", msg);
     match msg {
+        WM_CREATE => {
+            // Handle window creation
+            println!("WM_CREATE");
+            let createstruct = unsafe {
+                 &*(lparam as *const CREATESTRUCTW)
+            };
+            let arc_ptr = createstruct.lpCreateParams as *const Arc<Mutex<ClipBox>>;
+
+            if arc_ptr as usize % std::mem::align_of::<Arc<Mutex<ClipBox>>>() != 0 {
+                panic!("arc_ptr is not properly aligned");
+            }
+            // let clip_box = unsafe {
+            //     Arc::clone(&*arc_ptr)
+            // };
+            // let path = &clip_box.lock();
+
+            // println!("clip_box_path: {:?}", clip_box_path.lock().unwrap().path);
+            unsafe {
+                SetWindowLongPtrW(hwnd, GWLP_USERDATA, arc_ptr as isize);
+            }
+
+            return 0;
+        }
         WM_DESTROY => {
             // Handle window destruction
+            let clip_box_ptr = unsafe {
+                GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut Arc<Mutex<ClipBox>>
+            };
+            let _ = unsafe { Box::from_raw(clip_box_ptr) };  // Deallocate the Arc and the data
             unsafe { PostQuitMessage(0) };
             return 0;
         }
         WM_DROPFILES => {
             let hdrop = wparam as HDROP;
-            println!("WM_DROPFILES: {:?}", hdrop);
+            let file_count = unsafe { DragQueryFileW(hdrop, 0xFFFFFFFF, null_mut(), 0) };
+            let arc_ptr = unsafe {
+                GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *const Arc<Mutex<ClipBox>>
+            };
+            println!("arc_ptr: {:?}", arc_ptr);
+            if arc_ptr as usize % std::mem::align_of::<Arc<Mutex<ClipBox>>>() != 0 {
+                panic!("arc_ptr is not properly aligned");
+            }
 
-            let clip_box_ptr = unsafe{
-                GetWindowLongPtrW(hwnd, GWLP_USERDATA)
-            } as *mut Arc<Mutex<ClipBox>>;
-            // println!("clip_box_ptr: {:?}", clip_box_ptr);
-            // let clip_box = unsafe { Arc::from_raw(clip_box_ptr) };
-            // println!("clip_box: {:?}", clip_box.lock().unwrap().path);
+            assert!(!arc_ptr.is_null(), "clip_box_ptr is null");
 
-            // file_drop(hdrop, clip_box_ptr);
-            hdrop
+            let clip_box = unsafe {
+                Arc::clone(&*arc_ptr)
+            };
+            println!("clip_box: {:?}", clip_box.lock().unwrap().path);
+            file_drop(hdrop, clip_box.lock().unwrap());
+
+
+            for i in 0..file_count {
+                let mut file_name: [u16; 256] = [0; 256];
+                unsafe { DragQueryFileW(hdrop, i, &mut file_name as *mut u16, 256) };
+                let file_lossy = String::from_utf16_lossy(&file_name);
+                let file_name_string = file_lossy.trim_end_matches('\0');
+                println!("file_name_string: {:?}", file_name_string);
+            }
+            unsafe { DragFinish(hdrop) };
+            0
         }
         WM_PAINT => {
             // Handle window painting
