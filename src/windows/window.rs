@@ -59,7 +59,8 @@ pub fn foreground_window() -> (App, Option<HWND>) {
 pub fn create_window(clip_box: &ClipBox) {
 
     // get the pointer to the clip_box
-    let clip_box_ptr = Arc::into_raw(Arc::new(Mutex::new(clip_box)));
+    let arc_ptr = Arc::into_raw(Arc::new(Mutex::new(clip_box)));
+    let clip_box_ptr = Box::into_raw(Box::new(arc_ptr));
     println!("clip_box_ptr: {:?}", clip_box_ptr);
 
     // Convert class_name to null-terminated wide string
@@ -94,7 +95,7 @@ pub fn create_window(clip_box: &ClipBox) {
         HWND::default(),
         HMENU::default(),
         wc.hInstance,
-        clip_box_ptr as *const std::os::raw::c_void,
+        clip_box_ptr as *mut _,
     ) };
 
     // Ensure functionality when running as admin
@@ -113,7 +114,7 @@ pub fn create_window(clip_box: &ClipBox) {
             panic!("Failed to change message filter for WM_COPYDATA");
         }
 
-        // Allow 0x0049 messages
+        // Allow 0x0049 messages (WM_COPYGLOBALDATA)
         let success = unsafe { ChangeWindowMessageFilterEx(window, 0x0049, MSGFLT_ALLOW, std::ptr::null_mut()) };
         if success == 0 {
             panic!("Failed to change message filter for 0x0049");
@@ -211,7 +212,7 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 SetWindowLongPtrW(hwnd, GWLP_USERDATA, arc_ptr as isize);
             }
 
-            return 0;
+            0
         }
         WM_DESTROY => {
             // Handle window destruction
@@ -220,16 +221,19 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             };
             let _ = unsafe { Box::from_raw(clip_box_ptr) };  // Deallocate the Arc and the data
             unsafe { PostQuitMessage(0) };
-            return 0;
+            0
         }
         WM_DROPFILES => {
             println!("WM_DROPFILES");
             let hdrop = wparam as HDROP;
-            let file_count = unsafe { DragQueryFileW(hdrop, 0xFFFFFFFF, null_mut(), 0) };
             let arc_ptr = unsafe {
                 GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *const Arc<Mutex<ClipBox>>
             };
+
             println!("arc_ptr: {:?}", arc_ptr);
+            let user_data = unsafe { GetWindowLongPtrW(hwnd, GWLP_USERDATA) };
+            println!("User data: {:?}", user_data as *const Arc<Mutex<ClipBox>>);
+
             if arc_ptr as usize % std::mem::align_of::<Arc<Mutex<ClipBox>>>() != 0 {
                 panic!("arc_ptr is not properly aligned");
             }
@@ -239,10 +243,12 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             let clip_box = unsafe {
                 Arc::clone(&*arc_ptr)
             };
-            println!("clip_box: {:?}", clip_box.lock().unwrap().path);
-            file_drop(hdrop, clip_box.lock().unwrap());
 
+            file_drop(hdrop, clip_box);
 
+            // it's best to keep file_count directly above the for..in loop
+            // otherwise, the optimizer could create issues
+            let file_count = unsafe { DragQueryFileW(hdrop, 0xFFFFFFFF, null_mut(), 0) };
             for i in 0..file_count {
                 let mut file_name: [u16; 256] = [0; 256];
                 unsafe { DragQueryFileW(hdrop, i, &mut file_name as *mut u16, 256) };
@@ -251,6 +257,7 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 println!("file_name_string: {:?}", file_name_string);
             }
             unsafe { DragFinish(hdrop) };
+
             0
         }
         WM_PAINT => {
@@ -279,7 +286,7 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 EndPaint(hwnd, &ps);
             }
 
-            return 0;
+            0
         }
         _ => {
             // Handle other messages or pass to default handler
