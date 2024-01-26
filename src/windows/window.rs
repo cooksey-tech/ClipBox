@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 use windows_sys::Win32::Foundation::{WPARAM, LPARAM, LRESULT};
 use windows_sys::Win32::Graphics::Gdi::{HBRUSH, PAINTSTRUCT, BeginPaint, EndPaint, CreatePen, PS_SOLID, SelectObject, Ellipse, DeleteObject};
 use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleExW, GetModuleHandleW};
-use windows_sys::Win32::UI::WindowsAndMessaging::{HICON, HCURSOR, HMENU, PostQuitMessage, DefWindowProcW, WM_PAINT, WM_DESTROY, MSG, GetMessageW, TranslateMessage, DispatchMessageW, WS_EX_APPWINDOW, WS_EX_ACCEPTFILES, WS_CHILD, WS_TABSTOP, WS_VISIBLE, BS_DEFPUSHBUTTON, MessageBoxExW, GetClientRect, WM_DROPFILES, SetWindowLongPtrW, GWLP_USERDATA, GetWindowLongPtrW, WM_CREATE, CREATESTRUCTW};
+use windows_sys::Win32::UI::WindowsAndMessaging::{ChangeWindowMessageFilterEx, DefWindowProcW, DispatchMessageW, GetClientRect, GetMessageW, GetWindowLongPtrW, MessageBoxExW, PostQuitMessage, SetWindowLongPtrW, TranslateMessage, BS_DEFPUSHBUTTON, CREATESTRUCTW, GWLP_USERDATA, HCURSOR, HICON, HMENU, MSG, MSGFLT_ALLOW, WM_COPYDATA, WM_CREATE, WM_DESTROY, WM_DROPFILES, WM_PAINT, WS_CHILD, WS_EX_ACCEPTFILES, WS_EX_APPWINDOW, WS_TABSTOP, WS_VISIBLE};
 use windows_sys::Win32::{
     Foundation::{GetLastError, HANDLE, HINSTANCE, HWND},
     System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION},
@@ -59,7 +59,8 @@ pub fn foreground_window() -> (App, Option<HWND>) {
 pub fn create_window(clip_box: &ClipBox) {
 
     // get the pointer to the clip_box
-    let clip_box_ptr = Arc::into_raw(Arc::new(Mutex::new(clip_box)));
+    let arc_ptr = Arc::into_raw(Arc::new(Mutex::new(clip_box)));
+    let clip_box_ptr = Box::into_raw(Box::new(arc_ptr));
     println!("clip_box_ptr: {:?}", clip_box_ptr);
 
     // Convert class_name to null-terminated wide string
@@ -94,8 +95,33 @@ pub fn create_window(clip_box: &ClipBox) {
         HWND::default(),
         HMENU::default(),
         wc.hInstance,
-        clip_box_ptr as *const std::os::raw::c_void,
+        clip_box_ptr as *mut _,
     ) };
+
+    // Ensure functionality when running as admin
+    if window <= 0 {
+        panic!("Failed to create window");
+    } else {
+        // Allow WM_DROPFILES messages
+        let success = unsafe { ChangeWindowMessageFilterEx(window, WM_DROPFILES, MSGFLT_ALLOW, std::ptr::null_mut()) };
+        if success == 0 {
+            panic!("Failed to change message filter for WM_DROPFILES");
+        }
+
+        // Allow WM_COPYDATA messages
+        let success = unsafe { ChangeWindowMessageFilterEx(window, WM_COPYDATA, MSGFLT_ALLOW, std::ptr::null_mut()) };
+        if success == 0 {
+            panic!("Failed to change message filter for WM_COPYDATA");
+        }
+
+        // Allow 0x0049 messages (WM_COPYGLOBALDATA)
+        let success = unsafe { ChangeWindowMessageFilterEx(window, 0x0049, MSGFLT_ALLOW, std::ptr::null_mut()) };
+        if success == 0 {
+            panic!("Failed to change message filter for 0x0049");
+        }
+    }
+
+
     unsafe { DragAcceptFiles(window, true as i32) };
 
     // let hwndButton = unsafe {
@@ -164,6 +190,7 @@ pub fn create_window(clip_box: &ClipBox) {
 
 pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     // println!("Processing message: {}", msg);
+
     match msg {
         WM_CREATE => {
             // Handle window creation
@@ -186,7 +213,7 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 SetWindowLongPtrW(hwnd, GWLP_USERDATA, arc_ptr as isize);
             }
 
-            return 0;
+            0
         }
         WM_DESTROY => {
             // Handle window destruction
@@ -195,15 +222,19 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             };
             let _ = unsafe { Box::from_raw(clip_box_ptr) };  // Deallocate the Arc and the data
             unsafe { PostQuitMessage(0) };
-            return 0;
+            0
         }
         WM_DROPFILES => {
+            println!("WM_DROPFILES");
             let hdrop = wparam as HDROP;
-            let file_count = unsafe { DragQueryFileW(hdrop, 0xFFFFFFFF, null_mut(), 0) };
             let arc_ptr = unsafe {
                 GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *const Arc<Mutex<ClipBox>>
             };
+
             println!("arc_ptr: {:?}", arc_ptr);
+            let user_data = unsafe { GetWindowLongPtrW(hwnd, GWLP_USERDATA) };
+            println!("User data: {:?}", user_data as *const Arc<Mutex<ClipBox>>);
+
             if arc_ptr as usize % std::mem::align_of::<Arc<Mutex<ClipBox>>>() != 0 {
                 panic!("arc_ptr is not properly aligned");
             }
@@ -211,12 +242,15 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             assert!(!arc_ptr.is_null(), "clip_box_ptr is null");
 
             let clip_box = unsafe {
-                Arc::clone(&*arc_ptr)
+                // Arc::clone(&*arc_ptr)
+                Arc::from_raw(arc_ptr as *const Mutex<ClipBox>)
             };
-            println!("clip_box: {:?}", clip_box.lock().unwrap().path);
-            file_drop(hdrop, clip_box.lock().unwrap());
 
+            file_drop(hdrop, clip_box);
 
+            // it's best to keep file_count directly above the for..in loop
+            // otherwise, the optimizer could create issues
+            let file_count = unsafe { DragQueryFileW(hdrop, 0xFFFFFFFF, null_mut(), 0) };
             for i in 0..file_count {
                 let mut file_name: [u16; 256] = [0; 256];
                 unsafe { DragQueryFileW(hdrop, i, &mut file_name as *mut u16, 256) };
@@ -253,7 +287,7 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 EndPaint(hwnd, &ps);
             }
 
-            return 0;
+            0
         }
         _ => {
             // Handle other messages or pass to default handler
