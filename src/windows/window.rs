@@ -190,6 +190,7 @@ pub fn create_window(clip_box: &ClipBox) {
 
 pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     // println!("Processing message: {}", msg);
+
     match msg {
         WM_CREATE => {
             // Handle window creation
@@ -241,7 +242,8 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             assert!(!arc_ptr.is_null(), "clip_box_ptr is null");
 
             let clip_box = unsafe {
-                Arc::clone(&*arc_ptr)
+                // Arc::clone(&*arc_ptr)
+                Arc::from_raw(arc_ptr as *const Mutex<ClipBox>)
             };
 
             file_drop(hdrop, clip_box);
@@ -257,7 +259,6 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 println!("file_name_string: {:?}", file_name_string);
             }
             unsafe { DragFinish(hdrop) };
-
             0
         }
         WM_PAINT => {
