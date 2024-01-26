@@ -23,21 +23,6 @@ fn main() {
         _ => println!("Not WM_INITMENUPOPUP"),
     }
 
-    // Retrieves data from the clipboard in a specified format. The clipboard must have been opened previously.
-    let result;
-    unsafe {
-        result = GetClipboardData(0);
-    }
-    println!("GetClipboardData: {:?}", result);
-
-    let cb = unsafe {
-        OpenClipboard(0)
-    };
-    unsafe {
-        EmptyClipboard();
-    }
-    println!("OpenClipboard: {:?}", cb);
-
     events::mouse::lisenter();
     let (app, handle) = window::foreground_window();
     match (app, handle)  {
@@ -47,9 +32,7 @@ fn main() {
 
     // create a test box
     let clip_box = ClipBox::new();
-    // create a shared state
-    let state = SharedState::new(clip_box);
-    
+
     // println!("clip_box: {:?}", state.clip_box.lock()
     //     .expect("Unable to block local thread").path);
 
