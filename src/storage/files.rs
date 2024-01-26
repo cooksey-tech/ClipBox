@@ -27,6 +27,7 @@ pub fn file_drop(hdrop: HDROP, clip_box: Arc<Mutex<ClipBox>>) {
         println!("file_name_string: {:?}", file_name_string);
         // copy file to box directory
         clip_box_guard.add_file(&PathBuf::from(file_name_string));
+        println!("completed add");
     }
     // release memory allocated for HDROP
 

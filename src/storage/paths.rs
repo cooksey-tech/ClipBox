@@ -42,7 +42,7 @@ impl ClipBox {
     // Copy a file (or folder) to the box directory
     pub fn add_file(&self, file_path: &PathBuf) {
         let file_name = file_path.file_name().expect("Failed to get file name");
-        // println!("file_name: {:?}", &self.path.join(file_name));
+        println!("file_name: {:?}", file_name);
         // Copies the file to the box directory
         std::fs::copy(file_path, &self.path.join(file_name))
             .expect("Failed to copy file to box directory");
