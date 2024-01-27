@@ -17,6 +17,7 @@ pub fn base_path() -> PathBuf {
     return app_data_dir;
 }
 
+#[derive(Debug)]
 pub struct ClipBox {
     pub path: PathBuf,
 }
@@ -41,8 +42,11 @@ impl ClipBox {
 
     // Copy a file (or folder) to the box directory
     pub fn add_file(&self, file_path: &PathBuf) {
+        println!("STARTING ADD_FILE");
         let file_name = file_path.file_name().expect("Failed to get file name");
-        println!("file_name: {:?}", file_name);
+        println!("from: {:?}", file_name);
+        println!("to: {:?}", &self.path.join(file_name));
+
         // Copies the file to the box directory
         std::fs::copy(file_path, &self.path.join(file_name))
             .expect("Failed to copy file to box directory");
