@@ -3,7 +3,9 @@ use windows_sys::Win32::UI::Shell::{HDROP, DragQueryFileW, DragFinish};
 use crate::storage::paths::ClipBox;
 
 pub fn file_drop(hdrop: HDROP, clip_box: Arc<Mutex<ClipBox>>) {
-    println!("file_drop");
+    println!("STARTING FILE_DROP");
+    println!("clip_box: {:?}", clip_box.to_owned());
+
     let clip_box_guard = match clip_box.lock() {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
@@ -19,18 +21,32 @@ pub fn file_drop(hdrop: HDROP, clip_box: Arc<Mutex<ClipBox>>) {
         let mut file_name = vec![0u16; file_name_len as usize + 1];
 
         // get file nmae
-        unsafe { DragQueryFileW(hdrop, i, file_name.as_mut_ptr(), file_name_len) };
+        unsafe { DragQueryFileW(hdrop, i, file_name.as_mut_ptr(), file_name_len + 1) };
 
         // convert file name to string
-        let file_lossy = String::from_utf16_lossy(&file_name);
-        let file_name_string = file_lossy.trim_end_matches('\0');
+        let file_name_string = match  String::from_utf16(&file_name) {
+            Ok(s) => {
+                s.trim_end_matches('\0').to_owned()
+            },
+            Err(_) => {
+                println!("Failed to convert file name to string");
+                continue;
+            }
+        };
+
+
+        // let file_lossy = String::from_utf16_lossy(&file_name);
+        // let file_name_string = file_lossy.trim_end_matches('\0');
         println!("file_name_string: {:?}", file_name_string);
         // copy file to box directory
-        clip_box_guard.add_file(&PathBuf::from(file_name_string));
+
+        let file_path = PathBuf::from(file_name_string);
+        println!("file_path: {:?}", file_path);
+
+        clip_box_guard.add_file(&PathBuf::from(file_path));
         println!("completed add");
     }
     // release memory allocated for HDROP
-
     drop(clip_box_guard);
     unsafe { DragFinish(hdrop) };
 }

@@ -57,11 +57,23 @@ pub fn foreground_window() -> (App, Option<HWND>) {
 }
 
 pub fn create_window(clip_box: &ClipBox) {
+    println!("STARTING CREATE_WINDOW");
 
     // get the pointer to the clip_box
-    let arc_ptr = Arc::into_raw(Arc::new(Mutex::new(clip_box)));
-    let clip_box_ptr = Box::into_raw(Box::new(arc_ptr));
+    // let arc_ptr = Arc::into_raw(Arc::new(Mutex::new(clip_box)));
+
+    let clip_box_arc = Arc::new(Mutex::new(clip_box));
+    println!("clip_box_arc: {:?}", clip_box_arc);
+
+    let clip_box_ptr = Arc::into_raw(clip_box_arc);
     println!("clip_box_ptr: {:?}", clip_box_ptr);
+
+    // let clip_box_ptr = Box::into_raw(Box::new(arc_ptr));
+    // println!("clip_box_ptr: {:?}", clip_box_ptr.to_owned());
+    // let new_box = unsafe { Arc::from_raw(*clip_box_ptr) };
+    // println!("new_box: {:?}", new_box);
+
+
 
     // Convert class_name to null-terminated wide string
     let class_name = wide_char("ClipBox");
@@ -189,7 +201,7 @@ pub fn create_window(clip_box: &ClipBox) {
 }
 
 pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    // println!("Processing message: {}", msg);
+    println!("Processing message: {}", msg);
 
     match msg {
         WM_CREATE => {
@@ -199,16 +211,15 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                  &*(lparam as *const CREATESTRUCTW)
             };
             let arc_ptr = createstruct.lpCreateParams as *const Arc<Mutex<ClipBox>>;
+            // let clip_box = unsafe {
+            //     Arc::clone(&*arc_ptr)
+            // };
+            // println!("clip_box: {:?}", clip_box);
 
             if arc_ptr as usize % std::mem::align_of::<Arc<Mutex<ClipBox>>>() != 0 {
                 panic!("arc_ptr is not properly aligned");
             }
-            // let clip_box = unsafe {
-            //     Arc::clone(&*arc_ptr)
-            // };
-            // let path = &clip_box.lock();
 
-            // println!("clip_box_path: {:?}", clip_box_path.lock().unwrap().path);
             unsafe {
                 SetWindowLongPtrW(hwnd, GWLP_USERDATA, arc_ptr as isize);
             }
@@ -241,13 +252,20 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
 
             assert!(!arc_ptr.is_null(), "clip_box_ptr is null");
 
+            println!("arc_ptr again: {:?}", arc_ptr);
+            // let clip_box = unsafe {
+            //     // Arc::clone(&*arc_ptr)
+            //     Arc::from_raw(arc_ptr as *const Mutex<ClipBox>)
+            // };
+
             let clip_box = unsafe {
-                // Arc::clone(&*arc_ptr)
-                Arc::from_raw(arc_ptr as *const Mutex<ClipBox>)
+                Arc::clone(&*arc_ptr)
             };
 
+            println!("clip_box: {:?}", clip_box);
+            println!("CALLING FILE_DROP");
             file_drop(hdrop, clip_box);
-
+            println!("COMPLETED FILE_DROP");
             // it's best to keep file_count directly above the for..in loop
             // otherwise, the optimizer could create issues
             let file_count = unsafe { DragQueryFileW(hdrop, 0xFFFFFFFF, null_mut(), 0) };
