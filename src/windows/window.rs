@@ -65,10 +65,10 @@ pub fn create_window(clip_box: &ClipBox) {
     let clip_box_arc = Arc::new(Mutex::new(clip_box));
     println!("clip_box_arc: {:?}", clip_box_arc);
 
-    let clip_box_ptr = Arc::into_raw(clip_box_arc);
-    println!("clip_box_ptr: {:?}", clip_box_ptr);
+    let arc_ptr = Arc::into_raw(clip_box_arc);
 
-    // let clip_box_ptr = Box::into_raw(Box::new(arc_ptr));
+    println!("arc_ptr: {:?}", arc_ptr);
+
     // println!("clip_box_ptr: {:?}", clip_box_ptr.to_owned());
     // let new_box = unsafe { Arc::from_raw(*clip_box_ptr) };
     // println!("new_box: {:?}", new_box);
@@ -107,7 +107,7 @@ pub fn create_window(clip_box: &ClipBox) {
         HWND::default(),
         HMENU::default(),
         wc.hInstance,
-        clip_box_ptr as *mut _,
+        arc_ptr as *const _,
     ) };
 
     // Ensure functionality when running as admin
@@ -201,7 +201,7 @@ pub fn create_window(clip_box: &ClipBox) {
 }
 
 pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    println!("Processing message: {}", msg);
+    // println!("Processing message: {}", msg);
 
     match msg {
         WM_CREATE => {
@@ -243,28 +243,25 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             };
 
             println!("arc_ptr: {:?}", arc_ptr);
-            let user_data = unsafe { GetWindowLongPtrW(hwnd, GWLP_USERDATA) };
-            println!("User data: {:?}", user_data as *const Arc<Mutex<ClipBox>>);
+            // let user_data = unsafe { GetWindowLongPtrW(hwnd, GWLP_USERDATA) };
+            // println!("User data: {:?}", user_data as *const Arc<Mutex<ClipBox>>);
 
             if arc_ptr as usize % std::mem::align_of::<Arc<Mutex<ClipBox>>>() != 0 {
                 panic!("arc_ptr is not properly aligned");
             }
-
-            assert!(!arc_ptr.is_null(), "clip_box_ptr is null");
-
-            println!("arc_ptr again: {:?}", arc_ptr);
+            // assert!(!arc_ptr.is_null(), "clip_box_ptr is null");
             // let clip_box = unsafe {
             //     // Arc::clone(&*arc_ptr)
             //     Arc::from_raw(arc_ptr as *const Mutex<ClipBox>)
             // };
 
-            let clip_box = unsafe {
-                Arc::clone(&*arc_ptr)
-            };
+            // let clip_box = unsafe {
+            //     Arc::clone(&*arc_ptr)
+            // };
 
-            println!("clip_box: {:?}", clip_box);
             println!("CALLING FILE_DROP");
-            file_drop(hdrop, clip_box);
+
+            file_drop(hdrop, arc_ptr);
             println!("COMPLETED FILE_DROP");
             // it's best to keep file_count directly above the for..in loop
             // otherwise, the optimizer could create issues

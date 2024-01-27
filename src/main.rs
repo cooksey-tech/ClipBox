@@ -31,7 +31,7 @@ fn main() {
     }
 
     // create a test box
-    let clip_box = ClipBox::new();
+    let _ = ClipBox::new();
 
     // println!("clip_box: {:?}", state.clip_box.lock()
     //     .expect("Unable to block local thread").path);

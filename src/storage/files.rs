@@ -1,10 +1,13 @@
-use std::{ptr::null_mut, sync::{Arc, Mutex, MutexGuard}, path::PathBuf};
+use std::{clone, path::PathBuf, ptr::null_mut, sync::{Arc, Mutex, MutexGuard}};
 use windows_sys::Win32::UI::Shell::{HDROP, DragQueryFileW, DragFinish};
 use crate::storage::paths::ClipBox;
 
-pub fn file_drop(hdrop: HDROP, clip_box: Arc<Mutex<ClipBox>>) {
+pub fn file_drop(hdrop: HDROP, arc_ptr: *const Arc<Mutex<ClipBox>>) {
     println!("STARTING FILE_DROP");
-    println!("clip_box: {:?}", clip_box.to_owned());
+
+    // println!("clip_box: {:?}", clip_box.to_owned());
+
+    let clip_box = unsafe { Arc::from_raw(arc_ptr) };
 
     let clip_box_guard = match clip_box.lock() {
         Ok(guard) => guard,
