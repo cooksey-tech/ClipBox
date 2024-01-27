@@ -5,7 +5,7 @@ use windows_sys::Win32::UI::Shell::SHGetFileInfoW;
 
 use crate::tools::encoding::wide_char;
 
-fn get_file_icon(path: &PathBuf) -> HICON {
+pub fn get_file_icon(path: &PathBuf) -> HICON {
     // Contains information about a file object.
     let mut shfi = SHFILEINFOW {
         hIcon: HICON::default(),
@@ -27,3 +27,4 @@ fn get_file_icon(path: &PathBuf) -> HICON {
 
     shfi.hIcon
 }
+
