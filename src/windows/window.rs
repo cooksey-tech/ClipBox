@@ -95,7 +95,7 @@ pub fn create_window(clip_box: &ClipBox) {
         HWND::default(),
         HMENU::default(),
         wc.hInstance,
-        clip_box_ptr as *mut _,
+        clip_box_ptr as *const std::os::raw::c_void, // Pass the clip_box_ptr as the lpParam
     ) };
 
     // Ensure functionality when running as admin
@@ -198,19 +198,20 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             let createstruct = unsafe {
                  &*(lparam as *const CREATESTRUCTW)
             };
-            let arc_ptr = createstruct.lpCreateParams as *const Arc<Mutex<ClipBox>>;
+            let box_ptr = createstruct.lpCreateParams as *mut *const Mutex<&ClipBox>;
 
-            if arc_ptr as usize % std::mem::align_of::<Arc<Mutex<ClipBox>>>() != 0 {
-                panic!("arc_ptr is not properly aligned");
-            }
+
             // let clip_box = unsafe {
             //     Arc::clone(&*arc_ptr)
             // };
             // let path = &clip_box.lock();
 
+            // let temp = unsafe { Arc::from_raw(arc_ptr.to_owned()) };
+            // println!("temp: {:?}", temp);
+
             // println!("clip_box_path: {:?}", clip_box_path.lock().unwrap().path);
             unsafe {
-                SetWindowLongPtrW(hwnd, GWLP_USERDATA, arc_ptr as isize);
+                SetWindowLongPtrW(hwnd, GWLP_USERDATA, box_ptr as isize);
             }
 
             0
@@ -227,8 +228,13 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
         WM_DROPFILES => {
             println!("WM_DROPFILES");
             let hdrop = wparam as HDROP;
+            let box_ptr = unsafe {
+                GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut *const Mutex<&ClipBox>
+            };
+
             let arc_ptr = unsafe {
-                GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *const Arc<Mutex<ClipBox>>
+                let ptr = Box::from_raw(box_ptr);
+                *ptr
             };
 
             println!("arc_ptr: {:?}", arc_ptr);
@@ -243,8 +249,11 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
 
             let clip_box = unsafe {
                 // Arc::clone(&*arc_ptr)
-                Arc::from_raw(arc_ptr as *const Mutex<ClipBox>)
+                // Arc::from_raw(arc_ptr as *const Mutex<ClipBox>)
+                let arc = Arc::from_raw(arc_ptr);
+                *arc.to_owned().lock().unwrap()
             };
+            println!("clip_box: {:?}", clip_box);
 
             file_drop(hdrop, clip_box);
 
