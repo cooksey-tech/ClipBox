@@ -27,6 +27,6 @@ pub fn file_drop(hdrop: HDROP, clip_box: &ClipBox) {
     }
     // release memory allocated for HDROP
 
-    drop(clip_box);
-    unsafe { DragFinish(hdrop) };
+    // drop(clip_box);
+    // unsafe { DragFinish(hdrop) };
 }

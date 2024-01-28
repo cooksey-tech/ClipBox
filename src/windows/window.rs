@@ -7,9 +7,9 @@ use std::os::windows::ffi::{OsStrExt, OsStringExt};
 use std::ptr::null_mut;
 use std::sync::{Arc, Mutex};
 use windows_sys::Win32::Foundation::{WPARAM, LPARAM, LRESULT};
-use windows_sys::Win32::Graphics::Gdi::{HBRUSH, PAINTSTRUCT, BeginPaint, EndPaint, CreatePen, PS_SOLID, SelectObject, Ellipse, DeleteObject};
+use windows_sys::Win32::Graphics::Gdi::{BeginPaint, CreatePen, DeleteObject, Ellipse, EndPaint, InvalidateRect, SelectObject, UpdateWindow, HBRUSH, PAINTSTRUCT, PS_SOLID};
 use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleExW, GetModuleHandleW};
-use windows_sys::Win32::UI::WindowsAndMessaging::{ChangeWindowMessageFilterEx, DefWindowProcW, DispatchMessageW, GetClientRect, GetMessageW, GetWindowLongPtrW, MessageBoxExW, PostQuitMessage, SetWindowLongPtrW, TranslateMessage, BS_DEFPUSHBUTTON, CREATESTRUCTW, GWLP_USERDATA, HCURSOR, HICON, HMENU, MSG, MSGFLT_ALLOW, WM_COPYDATA, WM_CREATE, WM_DESTROY, WM_DROPFILES, WM_PAINT, WS_CHILD, WS_EX_ACCEPTFILES, WS_EX_APPWINDOW, WS_TABSTOP, WS_VISIBLE};
+use windows_sys::Win32::UI::WindowsAndMessaging::{ChangeWindowMessageFilterEx, DefWindowProcW, DispatchMessageW, DrawIcon, GetClientRect, GetMessageW, GetWindowLongPtrW, MessageBoxExW, PostQuitMessage, SetWindowLongPtrW, TranslateMessage, BS_DEFPUSHBUTTON, CREATESTRUCTW, GWLP_USERDATA, HCURSOR, HICON, HMENU, MSG, MSGFLT_ALLOW, WM_COPYDATA, WM_CREATE, WM_DESTROY, WM_DROPFILES, WM_PAINT, WS_CHILD, WS_EX_ACCEPTFILES, WS_EX_APPWINDOW, WS_TABSTOP, WS_VISIBLE};
 use windows_sys::Win32::{
     Foundation::{GetLastError, HANDLE, HINSTANCE, HWND},
     System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION},
@@ -19,12 +19,13 @@ use windows_sys::Win32::{
         WS_OVERLAPPEDWINDOW,
     },
 };
-use windows_sys::Win32::UI::Shell::{DragAcceptFiles, HDROP, DragQueryFileW, DragFinish};
+use windows_sys::Win32::UI::Shell::{DragAcceptFiles, DragFinish, DragQueryFileW, SHGetFileInfoW, HDROP, SHFILEINFOW, SHGFI_ICON, SHGFI_LARGEICON};
 
 use crate::enums::app::App;
 use crate::storage::files::file_drop;
 use crate::storage::paths::ClipBox;
 use crate::tools::encoding::wide_char;
+use crate::windows::icons::get_file_icon;
 // use crate::windows::procedure::{self, window_proc};
 
 pub fn foreground_window() -> (App, Option<HWND>) {
@@ -190,7 +191,7 @@ pub fn create_window(clip_box: &ClipBox) {
 
 pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     // println!("Processing message: {}", msg);
-
+    static mut HICON: Option<HICON> = None;
     match msg {
         WM_CREATE => {
             // Handle window creation
@@ -200,16 +201,6 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             };
             let box_ptr = createstruct.lpCreateParams as *mut *const Mutex<&ClipBox>;
 
-
-            // let clip_box = unsafe {
-            //     Arc::clone(&*arc_ptr)
-            // };
-            // let path = &clip_box.lock();
-
-            // let temp = unsafe { Arc::from_raw(arc_ptr.to_owned()) };
-            // println!("temp: {:?}", temp);
-
-            // println!("clip_box_path: {:?}", clip_box_path.lock().unwrap().path);
             unsafe {
                 SetWindowLongPtrW(hwnd, GWLP_USERDATA, box_ptr as isize);
             }
@@ -266,36 +257,42 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 let file_lossy = String::from_utf16_lossy(&file_name);
                 let file_name_string = file_lossy.trim_end_matches('\0');
                 println!("file_name_string: {:?}", file_name_string);
+
+                // get file icon
+
+                let mut shfi: SHFILEINFOW = unsafe { std::mem::zeroed() };
+                let flags = SHGFI_ICON | SHGFI_LARGEICON;
+                let file_path: Vec<u16> = OsStr::new(file_name_string).encode_wide().chain(once(0)).collect();
+                let result = unsafe {
+                    SHGetFileInfoW(
+                        file_path.as_ptr(),
+                        0,
+                        &mut shfi as *mut _,
+                        std::mem::size_of::<SHFILEINFOW>() as u32,
+                        flags
+                    )
+                };
+                println!("result: {:?}", result);
+                if result != 0 {
+                    unsafe {
+                        HICON = Some(shfi.hIcon);
+                        InvalidateRect(hwnd, null_mut(), true as i32);
+                        UpdateWindow(hwnd);
+                    };
+                }
             }
             unsafe { DragFinish(hdrop) };
             0
         }
         WM_PAINT => {
-            // Handle window painting
+            println!("WM_PAINT");
+
             let mut ps: PAINTSTRUCT = unsafe { std::mem::zeroed() };
             let hdc = unsafe { BeginPaint(hwnd, &mut ps) };
-
-            let pen = unsafe {
-                CreatePen(PS_SOLID, 1, 0)
-            };
-            let old_pen = unsafe {
-                SelectObject(hdc, pen)
-            };
-
-            // dimesions of button
-            let mut rect = unsafe { std::mem::zeroed() };
-            unsafe { GetClientRect(hwnd, &mut rect) };
-
-            // draw a circle for the button
-            unsafe { Ellipse(hdc, rect.left, rect.top, rect.right, rect.bottom) };
-
-            // Clean up
-            unsafe {
-                SelectObject(hdc, old_pen);
-                DeleteObject(pen);
-                EndPaint(hwnd, &ps);
+            if let Some(hicon) = unsafe { HICON } {
+                unsafe { DrawIcon(hdc, 0, 0, hicon) };
             }
-
+            unsafe { EndPaint(hwnd, &ps) };
             0
         }
         _ => {
