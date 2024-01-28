@@ -235,14 +235,16 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             if arc_ptr as usize % std::mem::align_of::<Arc<Mutex<ClipBox>>>() != 0 {
                 panic!("arc_ptr is not properly aligned");
             }
-
             assert!(!arc_ptr.is_null(), "clip_box_ptr is null");
 
+            let arc = unsafe { Arc::from_raw(arc_ptr) };
+            println!("strong_count: {:?}", Arc::strong_count(&arc));
+
+            let arc_clone = Arc::clone(&arc);
+            println!("arc_clone: {:?}", arc_clone);
+
             let clip_box = unsafe {
-                // Arc::clone(&*arc_ptr)
-                // Arc::from_raw(arc_ptr as *const Mutex<ClipBox>)
-                let arc = Arc::from_raw(arc_ptr);
-                *arc.to_owned().lock().unwrap()
+                *arc_clone.to_owned().lock().unwrap()
             };
             println!("clip_box: {:?}", clip_box);
 
