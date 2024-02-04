@@ -200,6 +200,17 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                  &*(lparam as *const CREATESTRUCTW)
             };
             let box_ptr = createstruct.lpCreateParams as *mut *const Mutex<&ClipBox>;
+            let arc_ptr = unsafe {
+                Box::from_raw(box_ptr)
+            };
+            let arc = unsafe {
+                Arc::from_raw(*arc_ptr)
+            };
+            let arc_clone = Arc::clone(&arc);
+            let raw_arc = Arc::into_raw(arc_clone.clone());
+            
+            println!("arc: {:?}", arc);
+            let box_ptr = Box::into_raw(Box::new(arc_clone));
 
             unsafe {
                 SetWindowLongPtrW(hwnd, GWLP_USERDATA, box_ptr as isize);
@@ -222,33 +233,21 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             let box_ptr = unsafe {
                 GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut *const Mutex<&ClipBox>
             };
-
             let arc_ptr = unsafe {
-                let ptr = Box::from_raw(box_ptr);
-                *ptr
+                *Box::from_raw(box_ptr)
             };
-
-            println!("arc_ptr: {:?}", arc_ptr);
-            let user_data = unsafe { GetWindowLongPtrW(hwnd, GWLP_USERDATA) };
-            println!("User data: {:?}", user_data as *const Arc<Mutex<ClipBox>>);
 
             if arc_ptr as usize % std::mem::align_of::<Arc<Mutex<ClipBox>>>() != 0 {
                 panic!("arc_ptr is not properly aligned");
             }
             assert!(!arc_ptr.is_null(), "clip_box_ptr is null");
 
-            let arc = unsafe { Arc::from_raw(arc_ptr) };
-            println!("strong_count: {:?}", Arc::strong_count(&arc));
-
-            let arc_clone = Arc::clone(&arc);
+            let arc_clone: Arc<Mutex<&ClipBox>> = unsafe { Arc::from_raw(arc_ptr) };
+            // Arc<Mutex<&ClipBox>>
             println!("arc_clone: {:?}", arc_clone);
-
-            let clip_box = unsafe {
-                *arc_clone.to_owned().lock().unwrap()
-            };
+            let clip_box = arc_clone.lock().unwrap();
             println!("clip_box: {:?}", clip_box);
-
-            file_drop(hdrop, clip_box);
+            file_drop(hdrop, &clip_box);
 
             // it's best to keep file_count directly above the for..in loop
             // otherwise, the optimizer could create issues
