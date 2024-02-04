@@ -242,7 +242,10 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             let clip_box_guard = arc_clone.lock().unwrap(); // Lock the Mutex and keep the MutexGuard
             println!("clip_box: {:?}", *clip_box_guard);
 
-            std::mem::forget(arc); // Forget the Arc to prevent it from being dropped
+            let new_ptr = Box::into_raw(Box::new(Arc::into_raw(arc))); // Convert the original Arc back into a raw pointer
+            println!("new_ptr: {:?}", new_ptr);
+            unsafe { SetWindowLongPtrW(hwnd, GWLP_USERDATA, new_ptr as isize) }; // Set the window's user data to the new raw pointer
+
 
             file_drop(hdrop, &*clip_box_guard); // Pass a reference to the ClipBox
             // it's best to keep file_count directly above the for..in loop
@@ -279,6 +282,7 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 }
             }
             unsafe { DragFinish(hdrop) };
+            println!("WM_DROPFILES end");
             0
         }
         WM_PAINT => {
