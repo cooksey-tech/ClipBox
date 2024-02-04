@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 use windows_sys::Win32::Foundation::{WPARAM, LPARAM, LRESULT};
 use windows_sys::Win32::Graphics::Gdi::{BeginPaint, CreatePen, DeleteObject, Ellipse, EndPaint, InvalidateRect, SelectObject, UpdateWindow, HBRUSH, PAINTSTRUCT, PS_SOLID};
 use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleExW, GetModuleHandleW};
-use windows_sys::Win32::UI::WindowsAndMessaging::{ChangeWindowMessageFilterEx, DefWindowProcW, DispatchMessageW, DrawIcon, GetClientRect, GetMessageW, GetWindowLongPtrW, MessageBoxExW, PostQuitMessage, SetWindowLongPtrW, TranslateMessage, BS_DEFPUSHBUTTON, CREATESTRUCTW, GWLP_USERDATA, HCURSOR, HICON, HMENU, MSG, MSGFLT_ALLOW, WM_COPYDATA, WM_CREATE, WM_DESTROY, WM_DROPFILES, WM_PAINT, WS_CHILD, WS_EX_ACCEPTFILES, WS_EX_APPWINDOW, WS_TABSTOP, WS_VISIBLE};
+use windows_sys::Win32::UI::WindowsAndMessaging::{ChangeWindowMessageFilterEx, DefWindowProcW, DispatchMessageW, DrawIcon, GetClientRect, GetIconInfo, GetMessageW, GetWindowLongPtrW, MessageBoxExW, PostQuitMessage, SetWindowLongPtrW, TranslateMessage, BS_DEFPUSHBUTTON, CREATESTRUCTW, GWLP_USERDATA, HCURSOR, HICON, HMENU, MSG, MSGFLT_ALLOW, WM_COPYDATA, WM_CREATE, WM_DESTROY, WM_DROPFILES, WM_PAINT, WS_CHILD, WS_EX_ACCEPTFILES, WS_EX_APPWINDOW, WS_TABSTOP, WS_VISIBLE};
 use windows_sys::Win32::{
     Foundation::{GetLastError, HANDLE, HINSTANCE, HWND},
     System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION},
@@ -158,14 +158,6 @@ pub fn create_window(clip_box: &ClipBox) {
     //     0,
     //     0) };
 
-    // let clip_box_ptr = Arc::into_raw(Arc::new(Mutex::new(clip_box)));
-    // println!("clip_box_ptr: {:?}", clip_box_ptr);
-
-    // unsafe { Arc::from_raw(clip_box_ptr) };
-
-    // let clip_box = unsafe { Arc::from_raw(clip_box_ptr) };
-    // println!("clip_box: {:?}", clip_box.lock().unwrap().path);
-
     println!("last error: {:?}", unsafe { GetLastError() });
     unsafe {
         loop {
@@ -222,15 +214,9 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             let box_ptr = unsafe {
                 GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut *const Mutex<&ClipBox>
             };
-
             let arc_ptr = unsafe {
-                let ptr = Box::from_raw(box_ptr);
-                *ptr
+                *Box::from_raw(box_ptr)
             };
-
-            println!("arc_ptr: {:?}", arc_ptr);
-            let user_data = unsafe { GetWindowLongPtrW(hwnd, GWLP_USERDATA) };
-            println!("User data: {:?}", user_data as *const Arc<Mutex<ClipBox>>);
 
             if arc_ptr as usize % std::mem::align_of::<Arc<Mutex<ClipBox>>>() != 0 {
                 panic!("arc_ptr is not properly aligned");
@@ -240,11 +226,10 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             let arc = unsafe { Arc::from_raw(arc_ptr) };
             let arc_clone = Arc::clone(&arc);
             let clip_box_guard = arc_clone.lock().unwrap(); // Lock the Mutex and keep the MutexGuard
-            println!("clip_box: {:?}", *clip_box_guard);
 
-            let new_ptr = Box::into_raw(Box::new(Arc::into_raw(arc))); // Convert the original Arc back into a raw pointer
-            println!("new_ptr: {:?}", new_ptr);
-            unsafe { SetWindowLongPtrW(hwnd, GWLP_USERDATA, new_ptr as isize) }; // Set the window's user data to the new raw pointer
+            // convert the Arc to a raw pointer and transfer ownership to the Box
+            let new_ptr = Box::into_raw(Box::new(Arc::into_raw(arc)));
+            unsafe { SetWindowLongPtrW(hwnd, GWLP_USERDATA, new_ptr as isize) };
 
 
             file_drop(hdrop, &*clip_box_guard); // Pass a reference to the ClipBox
@@ -290,8 +275,22 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
 
             let mut ps: PAINTSTRUCT = unsafe { std::mem::zeroed() };
             let hdc = unsafe { BeginPaint(hwnd, &mut ps) };
+
             if let Some(hicon) = unsafe { HICON } {
-                unsafe { DrawIcon(hdc, 0, 0, hicon) };
+                // get window dimensions
+                let mut rect = unsafe { std::mem::zeroed() };
+                unsafe { GetClientRect(hwnd, &mut rect) };
+
+                // get icon dimensions
+                let mut icon_info = unsafe { std::mem::zeroed() };
+                unsafe { GetIconInfo(hicon, &mut icon_info) };
+                let icon_w = icon_info.xHotspot * 2;
+                let icon_h = icon_info.yHotspot * 2;
+
+                let x = (rect.right - rect.left - icon_w as i32) / 2;
+                let y = (rect.bottom - rect.top - icon_h as i32) / 2;
+
+                unsafe { DrawIcon(hdc, x, y, hicon) };
             }
             unsafe { EndPaint(hwnd, &ps) };
             0
