@@ -238,18 +238,13 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             assert!(!arc_ptr.is_null(), "clip_box_ptr is null");
 
             let arc = unsafe { Arc::from_raw(arc_ptr) };
-            println!("strong_count: {:?}", Arc::strong_count(&arc));
-
             let arc_clone = Arc::clone(&arc);
-            println!("arc_clone: {:?}", arc_clone);
+            let clip_box_guard = arc_clone.lock().unwrap(); // Lock the Mutex and keep the MutexGuard
+            println!("clip_box: {:?}", *clip_box_guard);
 
-            let clip_box = unsafe {
-                *arc_clone.to_owned().lock().unwrap()
-            };
-            println!("clip_box: {:?}", clip_box);
+            std::mem::forget(arc); // Forget the Arc to prevent it from being dropped
 
-            file_drop(hdrop, clip_box);
-
+            file_drop(hdrop, &*clip_box_guard); // Pass a reference to the ClipBox
             // it's best to keep file_count directly above the for..in loop
             // otherwise, the optimizer could create issues
             let file_count = unsafe { DragQueryFileW(hdrop, 0xFFFFFFFF, null_mut(), 0) };
