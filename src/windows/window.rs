@@ -7,9 +7,9 @@ use std::os::windows::ffi::{OsStrExt, OsStringExt};
 use std::ptr::null_mut;
 use std::sync::{Arc, Mutex};
 use windows_sys::Win32::Foundation::{WPARAM, LPARAM, LRESULT};
-use windows_sys::Win32::Graphics::Gdi::{BeginPaint, CreatePen, DeleteObject, Ellipse, EndPaint, InvalidateRect, SelectObject, UpdateWindow, HBRUSH, PAINTSTRUCT, PS_SOLID};
+use windows_sys::Win32::Graphics::Gdi::{BeginPaint, CreatePen, DeleteObject, DrawCaption, Ellipse, EndPaint, InvalidateRect, SelectObject, UpdateWindow, HBRUSH, PAINTSTRUCT, PS_SOLID};
 use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleExW, GetModuleHandleW};
-use windows_sys::Win32::UI::WindowsAndMessaging::{ChangeWindowMessageFilterEx, DefWindowProcW, DispatchMessageW, DrawIcon, GetClientRect, GetIconInfo, GetMessageW, GetWindowLongPtrW, MessageBoxExW, PostQuitMessage, SetWindowLongPtrW, TranslateMessage, BS_DEFPUSHBUTTON, CREATESTRUCTW, GWLP_USERDATA, HCURSOR, HICON, HMENU, MSG, MSGFLT_ALLOW, WM_COPYDATA, WM_CREATE, WM_DESTROY, WM_DROPFILES, WM_PAINT, WS_CHILD, WS_EX_ACCEPTFILES, WS_EX_APPWINDOW, WS_TABSTOP, WS_VISIBLE};
+use windows_sys::Win32::UI::WindowsAndMessaging::{ChangeWindowMessageFilterEx, DefWindowProcW, DispatchMessageW, DrawIcon, DrawIconEx, GetClientRect, GetIconInfo, GetMessageW, GetWindowLongPtrW, MessageBoxExW, PostQuitMessage, SetWindowLongPtrW, TranslateMessage, BS_DEFPUSHBUTTON, CREATESTRUCTW, DI_NORMAL, GWLP_USERDATA, HCURSOR, HICON, HMENU, MSG, MSGFLT_ALLOW, WM_COPYDATA, WM_CREATE, WM_DESTROY, WM_DROPFILES, WM_PAINT, WS_CHILD, WS_EX_ACCEPTFILES, WS_EX_APPWINDOW, WS_TABSTOP, WS_VISIBLE};
 use windows_sys::Win32::{
     Foundation::{GetLastError, HANDLE, HINSTANCE, HWND},
     System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION},
@@ -25,6 +25,7 @@ use crate::enums::app::App;
 use crate::storage::files::file_drop;
 use crate::storage::paths::ClipBox;
 use crate::tools::encoding::wide_char;
+use crate::windows::components::buttons::expand_button;
 use crate::windows::icons::get_file_icon;
 // use crate::windows::procedure::{self, window_proc};
 
@@ -91,8 +92,8 @@ pub fn create_window(clip_box: &ClipBox) {
         WS_EX_ACCEPTFILES, // Window to accept drag and drop
         CW_USEDEFAULT,
         CW_USEDEFAULT,
-        300,
-        300,
+        160,
+        160,
         HWND::default(),
         HMENU::default(),
         wc.hInstance,
@@ -257,7 +258,6 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                         flags
                     )
                 };
-                println!("result: {:?}", result);
                 if result != 0 {
                     unsafe {
                         HICON = Some(shfi.hIcon);
@@ -284,15 +284,27 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 // get icon dimensions
                 let mut icon_info = unsafe { std::mem::zeroed() };
                 unsafe { GetIconInfo(hicon, &mut icon_info) };
-                let icon_w = icon_info.xHotspot * 2;
-                let icon_h = icon_info.yHotspot * 2;
+                let icon_w= icon_info.xHotspot as i32 * 2;
+                let icon_h = icon_info.yHotspot as i32 * 2;
 
-                let x = (rect.right - rect.left - icon_w as i32) / 2;
-                let y = (rect.bottom - rect.top - icon_h as i32) / 2;
+                let x = (rect.right - rect.left - icon_w) / 2;
+                let y = (rect.bottom - rect.top - icon_h) / 2;
 
-                unsafe { DrawIcon(hdc, x, y, hicon) };
-            }
+                unsafe { DrawIconEx(hdc,
+                    x,
+                    y,
+                    hicon,
+                    icon_w,
+                    icon_h,
+                    0,
+                    HBRUSH::default(),
+                    DI_NORMAL) };            }
             unsafe { EndPaint(hwnd, &ps) };
+
+
+            // create a button to expand items
+            expand_button(hwnd);
+
             0
         }
         _ => {
