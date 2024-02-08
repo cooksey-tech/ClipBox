@@ -226,7 +226,7 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
 
             let arc = unsafe { Arc::from_raw(arc_ptr) };
             let arc_clone = Arc::clone(&arc);
-            let clip_box_guard = arc_clone.lock().unwrap(); // Lock the Mutex and keep the MutexGuard
+            let clip_box_guard = arc_clone.lock().expect("Unable to unwrap Mutex"); // Lock the Mutex and keep the MutexGuard
 
             // convert the Arc to a raw pointer and transfer ownership to the Box
             let new_ptr = Box::into_raw(Box::new(Arc::into_raw(arc)));
@@ -298,12 +298,18 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                     icon_h,
                     0,
                     HBRUSH::default(),
-                    DI_NORMAL) };            }
+                    DI_NORMAL)
+                };
+
+                // create a button to expand items
+                let width = 100;
+                let height = 30;
+                let px = (rect.right - rect.left - width) / 2;
+                let py = 50;
+                expand_button(hwnd, (px, py), width, height);
+
+            }
             unsafe { EndPaint(hwnd, &ps) };
-
-
-            // create a button to expand items
-            expand_button(hwnd);
 
             0
         }

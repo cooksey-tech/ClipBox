@@ -5,17 +5,19 @@ use windows_sys::Win32::{Foundation::HWND, System::LibraryLoader::GetModuleHandl
 use crate::tools::encoding::wide_char;
 
 
-pub fn expand_button(hwnd: HWND) {
+pub fn expand_button(hwnd: HWND, pos: (i32, i32), width: i32, height: i32) {
+    println!("Creating expand button");
+
     return unsafe {
         CreateWindowExW(
             0,
             wide_char("BUTTON"), // Button class
             wide_char("Expand"),  // Button text
             WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON as u32,
-            10,
-            10,
-            100,
-            100,
+            pos.0,
+            pos.1,
+            width,
+            height,
             hwnd,
             HMENU::default(),
             GetModuleHandleW(null_mut()),
