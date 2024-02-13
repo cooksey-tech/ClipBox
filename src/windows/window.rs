@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 use windows_sys::Win32::Foundation::{WPARAM, LPARAM, LRESULT};
 use windows_sys::Win32::Graphics::Gdi::{BeginPaint, CreatePen, DeleteObject, DrawCaption, Ellipse, EndPaint, InvalidateRect, SelectObject, UpdateWindow, HBRUSH, PAINTSTRUCT, PS_SOLID};
 use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleExW, GetModuleHandleW};
-use windows_sys::Win32::UI::WindowsAndMessaging::{ChangeWindowMessageFilterEx, DefWindowProcW, DispatchMessageW, DrawIcon, DrawIconEx, GetClientRect, GetIconInfo, GetMessageW, GetWindowLongPtrW, MessageBoxExW, PostQuitMessage, SetWindowLongPtrW, SetWindowPos, TranslateMessage, BS_DEFPUSHBUTTON, CREATESTRUCTW, DI_NORMAL, GWLP_USERDATA, HCURSOR, HICON, HMENU, HWND_TOPMOST, MSG, MSGFLT_ALLOW, SWP_NOMOVE, SWP_NOSIZE, WM_COPYDATA, WM_CREATE, WM_DESTROY, WM_DROPFILES, WM_PAINT, WS_CHILD, WS_EX_ACCEPTFILES, WS_EX_APPWINDOW, WS_TABSTOP, WS_VISIBLE};
+use windows_sys::Win32::UI::WindowsAndMessaging::{ChangeWindowMessageFilterEx, DefWindowProcW, DispatchMessageW, DrawIcon, DrawIconEx, GetClientRect, GetIconInfo, GetMessageW, GetWindowLongPtrW, MessageBoxExW, PostQuitMessage, SetWindowLongPtrW, SetWindowPos, TranslateMessage, BS_DEFPUSHBUTTON, CREATESTRUCTW, DI_NORMAL, GWLP_USERDATA, HCURSOR, HICON, HMENU, HWND_TOPMOST, MSG, MSGFLT_ALLOW, SWP_NOMOVE, SWP_NOSIZE, WM_COMMAND, WM_COPYDATA, WM_CREATE, WM_DESTROY, WM_DROPFILES, WM_PAINT, WS_CHILD, WS_EX_ACCEPTFILES, WS_EX_APPWINDOW, WS_TABSTOP, WS_VISIBLE};
 use windows_sys::Win32::{
     Foundation::{GetLastError, HANDLE, HINSTANCE, HWND},
     System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION},
@@ -132,40 +132,14 @@ pub fn create_window(clip_box: &ClipBox) {
 
     unsafe { DragAcceptFiles(window, true as i32) };
 
-    // let hwndButton = unsafe {
-    //     CreateWindowExW(
-    //     0,
-    //     wide_char("BUTTON"), // Button class
-    //     null_mut(),  // Styles
-    //     WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON as u32,
-    //     10,
-    //     10,
-    //     100,
-    //     100,
-    //     window,
-    //     HMENU::default(),
-    //     wc.hInstance,
-    //     null_mut(),
-    // ) };
-
-    // let _ = unsafe { SetWindowLongPtrW(window, GWLP_USERDATA, clip_box_ptr as isize) };
-
-    let error = unsafe { GetLastError() };
-    // println!("error: {:?}", error);
     unsafe { ShowWindow(window, SW_SHOW) };
     println!("window: {:?}", window);
 
     // Process Windows messages
     let mut msg: MSG = unsafe { std::mem::zeroed() };
 
-    // let msgBox = unsafe { MessageBoxExW(
-    //     HWND::default(),
-    //     wide_char("Hello World!"),
-    //     wide_char("text"),
-    //     0,
-    //     0) };
-
-    println!("last error: {:?}", unsafe { GetLastError() });
+    let error = unsafe { GetLastError() };
+    println!("last error: {:?}", error);
     unsafe {
         loop {
             match GetMessageW(&mut msg, window, 0, 0) {
@@ -213,6 +187,11 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             };
             let _ = unsafe { Box::from_raw(clip_box_ptr) };  // Deallocate the Arc and the data
             unsafe { PostQuitMessage(0) };
+            0
+        }
+        WM_COMMAND => {
+            // Handle button press
+            println!("WM_COMMAND");
             0
         }
         WM_DROPFILES => {
@@ -296,6 +275,24 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 let x = (rect.right - rect.left - icon_w) / 2;
                 let y = (rect.bottom - rect.top - icon_h) / 2;
 
+                // create a box to hold the icon
+                let icon_box = unsafe {
+                    CreateWindowExW(
+                        0,
+                        wide_char("STATIC"),
+                        wide_char(""),
+                        WS_VISIBLE | WS_CHILD,
+                        x,
+                        y,
+                        icon_w,
+                        icon_h,
+                        hwnd,
+                        HMENU::default(),
+                        GetModuleHandleW(null_mut()),
+                        null_mut(),
+                    )
+                };
+
                 unsafe { DrawIconEx(hdc,
                     x,
                     y,
@@ -308,10 +305,10 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 };
 
                 // create a button to expand items
-                let width = 100;
-                let height = 30;
+                let width = 80;
+                let height = 20;
                 let px = (rect.right - rect.left - width) / 2;
-                let py = 50;
+                let py = rect.bottom - (height + 10);
                 expand_button(hwnd, (px, py), width, height);
 
             }
