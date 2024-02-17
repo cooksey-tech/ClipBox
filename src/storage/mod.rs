@@ -1,3 +1,3 @@
 pub mod files;
-pub mod paths;
+pub mod clipbox;
 pub mod state;

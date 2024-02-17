@@ -5,7 +5,7 @@ use windows_sys::Win32::{
     Foundation::{GetLastError, HINSTANCE}
 };
 
-use crate::{windows::window, storage::{paths::ClipBox, state::SharedState}};
+use crate::{windows::window, storage::{clipbox::ClipBox, state::SharedState}};
 
 mod events;
 mod enums;

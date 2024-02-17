@@ -24,7 +24,7 @@ use windows_sys::Win32::UI::Shell::{DragAcceptFiles, DragFinish, DragQueryFileW,
 use crate::constants::SS_ICON;
 use crate::enums::app::App;
 use crate::storage::files::file_drop;
-use crate::storage::paths::ClipBox;
+use crate::storage::clipbox::ClipBox;
 use crate::tools::encoding::wide_char;
 use crate::windows::components::buttons::expand_button;
 use crate::windows::icons::get_file_icon;

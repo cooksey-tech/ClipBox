@@ -1,4 +1,4 @@
-use std::{path::PathBuf, env};
+use std::{env, fs, path::PathBuf};
 
 use crate::{constants, windows::window};
 
@@ -43,6 +43,11 @@ impl ClipBox {
     // Copy a file (or folder) to the box directory
     pub fn add_file(&self, file_path: &PathBuf) {
         println!("STARTING ADD_FILE");
+        
+        if !file_path.is_dir() {
+            fs::create_dir_all(file_path);
+        }
+
         let file_name = file_path.file_name().expect("Failed to get file name");
         println!("from: {:?}", file_name);
         println!("to: {:?}", &self.path.join(file_name));
@@ -56,6 +61,10 @@ impl ClipBox {
         // Deletes the box directory
         std::fs::remove_dir_all(&self.path)
             .expect("Failed to delete box directory");
+    }
+
+    fn add_dir(&self, path: &PathBuf) {
+
     }
 
     fn create_window(&self) {

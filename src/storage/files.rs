@@ -1,6 +1,6 @@
 use std::{ptr::null_mut, sync::{Arc, Mutex, MutexGuard}, path::PathBuf};
 use windows_sys::Win32::UI::Shell::{HDROP, DragQueryFileW, DragFinish};
-use crate::storage::paths::ClipBox;
+use crate::storage::clipbox::ClipBox;
 
 pub fn file_drop(hdrop: HDROP, clip_box: &ClipBox) {
     println!("STARTING FILE_DROP");
