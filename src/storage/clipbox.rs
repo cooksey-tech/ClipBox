@@ -43,10 +43,6 @@ impl ClipBox {
     // Copy a file (or folder) to the box directory
     pub fn add_file(&self, file_path: &PathBuf) {
         println!("STARTING ADD_FILE");
-        
-        if !file_path.is_dir() {
-            fs::create_dir_all(file_path);
-        }
 
         let file_name = file_path.file_name().expect("Failed to get file name");
         println!("from: {:?}", file_name);
@@ -63,7 +59,26 @@ impl ClipBox {
             .expect("Failed to delete box directory");
     }
 
-    fn add_dir(&self, path: &PathBuf) {
+    pub fn copy_to(&self, from_dir: &PathBuf) {
+        let folder_name = from_dir.file_name().expect("Failed to get file name");
+        let to_dir = &self.path.join(folder_name);
+
+        println!("to_dir: {:?}", to_dir);
+
+        // create destination directory if it does not exist
+        if !to_dir.is_dir() {
+            fs::create_dir_all(to_dir)
+                .expect("Failed to create directory");
+        };
+
+        for file in to_dir.read_dir().expect("Failed to read directory") {
+            let file_type = file
+                .expect("Failed to read file")
+                .file_type()
+                .expect("Failed to get file type");
+
+            // println!("file_type: {:?}", file_type);
+        }
 
     }
 

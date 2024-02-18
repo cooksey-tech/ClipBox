@@ -22,7 +22,8 @@ pub fn file_drop(hdrop: HDROP, clip_box: &ClipBox) {
         let file_name_string = file_lossy.trim_end_matches('\0');
         println!("file_name_string: {:?}", file_name_string);
         // copy file to box directory
-        clip_box.add_file(&PathBuf::from(file_name_string));
+        // clip_box.add_file(&PathBuf::from(file_name_string));
+        clip_box.copy_to(&PathBuf::from(file_name_string));
         println!("completed add");
     }
     // release memory allocated for HDROP
