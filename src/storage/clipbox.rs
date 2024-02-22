@@ -71,16 +71,30 @@ impl ClipBox {
                 .expect("Failed to create directory");
         };
 
-        for file in to_dir.read_dir().expect("Failed to read directory") {
-            let file_type = file
-                .expect("Failed to read file")
-                .file_type()
-                .expect("Failed to get file type");
+        for file in from_dir.read_dir().expect("Failed to read directory") {
+            println!("inside of the iterator");
+            let file = file.expect("Failed to read file");
+            let file_type = file.file_type().expect("Failed to get file type");
+
+            if file_type.is_dir() {
+                println!("file is a directory");
+                self.copy_to(&file.path());
+            } else {
+                let file_name = file.file_name();
+                let to_file = to_dir.join(file_name);
+
+                println!("from: {:?}", file.path());
+                println!("to: {:?}", to_file);
+
+                fs::copy(file.path(), to_file)
+                    .expect("Failed to copy file");
+            }
+
 
             // println!("file_type: {:?}", file_type);
         }
-
     }
+
 
     fn create_window(&self) {
         window::create_window(self);
