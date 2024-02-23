@@ -63,17 +63,25 @@ impl ClipBox {
         let folder_name = from_dir.file_name().expect("Failed to get file name");
         let to_dir = &self.path.join(folder_name);
 
-        println!("to_dir: {:?}", to_dir);
+        // if a file, copy to box directory and return
+        if from_dir.is_file() {
+            println!("is file: {:?}", from_dir);
 
-        // create destination directory if it does not exist
-        if !to_dir.is_dir() {
+            std::fs::copy(from_dir, to_dir)
+                .expect("Failed to copy file to box directory");
+            return;
+        } else if !to_dir.is_dir() { // if directory, create destination directory if it does not exist
             fs::create_dir_all(to_dir)
                 .expect("Failed to create directory");
         };
 
+        // join handle for multiple threads
         let mut handles = Vec::new();
 
+
         for file in from_dir.read_dir().expect("Failed to read directory") {
+            // file is referring to the file we are currently iterating over
+            // this will be the file/folder we are copying
             let file = file.expect("Failed to read file");
             let file_type = file.file_type().expect("Failed to get file type");
             let file_path = file.path();
