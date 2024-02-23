@@ -1,4 +1,4 @@
-use std::{env, fs, path::PathBuf};
+use std::{env, fs, path::PathBuf, thread};
 
 use crate::{constants, windows::window};
 
@@ -41,15 +41,15 @@ impl ClipBox {
     }
 
     // Copy a file (or folder) to the box directory
-    pub fn add_file(&self, file_path: &PathBuf) {
+    pub fn add_file(from_path: PathBuf, file_path: &PathBuf) {
         println!("STARTING ADD_FILE");
 
         let file_name = file_path.file_name().expect("Failed to get file name");
         println!("from: {:?}", file_name);
-        println!("to: {:?}", &self.path.join(file_name));
+        println!("to: {:?}", &from_path.join(file_name));
 
         // Copies the file to the box directory
-        std::fs::copy(file_path, &self.path.join(file_name))
+        std::fs::copy(file_path, &from_path.join(file_name))
             .expect("Failed to copy file to box directory");
     }
 
@@ -71,14 +71,15 @@ impl ClipBox {
                 .expect("Failed to create directory");
         };
 
+        let mut handles = Vec::new();
+
         for file in from_dir.read_dir().expect("Failed to read directory") {
-            println!("inside of the iterator");
             let file = file.expect("Failed to read file");
             let file_type = file.file_type().expect("Failed to get file type");
+            let file_path = file.path();
 
             if file_type.is_dir() {
-                println!("file is a directory");
-                self.copy_to(&file.path());
+                self.copy_to(&file_path);
             } else {
                 let file_name = file.file_name();
                 let to_file = to_dir.join(file_name);
@@ -86,13 +87,21 @@ impl ClipBox {
                 println!("from: {:?}", file.path());
                 println!("to: {:?}", to_file);
 
-                fs::copy(file.path(), to_file)
-                    .expect("Failed to copy file");
+                let handle = thread::spawn(move || {
+
+                    // Copies the file to the box directory
+                    std::fs::copy(file_path, to_file)
+                    .expect("Failed to copy file to box directory");
+                });
+
+                handles.push(handle);
             }
-
-
-            // println!("file_type: {:?}", file_type);
         }
+
+        for handle in handles {
+            handle.join().expect("Failed to join thread");
+        }
+
     }
 
 
