@@ -2,11 +2,12 @@ use std::ptr::null_mut;
 
 use windows_sys::Win32::{Foundation::HWND, System::LibraryLoader::GetModuleHandleW, UI::WindowsAndMessaging::{CreateWindowExW, BS_DEFPUSHBUTTON, HMENU, WS_CHILD, WS_TABSTOP, WS_VISIBLE}};
 
-use crate::tools::encoding::wide_char;
+use crate::{constants::ID_EXPAND_BUTTON, tools::encoding::wide_char};
 
 
 pub fn expand_button(hwnd: HWND, pos: (i32, i32), width: i32, height: i32) {
     println!("Creating expand button");
+
 
     return unsafe {
         CreateWindowExW(
@@ -19,7 +20,7 @@ pub fn expand_button(hwnd: HWND, pos: (i32, i32), width: i32, height: i32) {
             width,
             height,
             hwnd,
-            HMENU::default(),
+            ID_EXPAND_BUTTON as HMENU,
             GetModuleHandleW(null_mut()),
             null_mut(),
         );

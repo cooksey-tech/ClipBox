@@ -21,7 +21,7 @@ use windows_sys::Win32::{
 };
 use windows_sys::Win32::UI::Shell::{DragAcceptFiles, DragFinish, DragQueryFileW, SHGetFileInfoW, HDROP, SHFILEINFOW, SHGFI_ICON, SHGFI_LARGEICON};
 
-use crate::constants::SS_ICON;
+use crate::constants::{ID_EXPAND_BUTTON, SS_ICON};
 use crate::enums::app::App;
 use crate::storage::files::file_drop;
 use crate::storage::clipbox::ClipBox;
@@ -193,6 +193,35 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
         WM_COMMAND => {
             // Handle button press
             println!("WM_COMMAND");
+            let button_id = wparam as i32;
+            println!("button_id: {:?}", button_id);
+            match button_id {
+                ID_EXPAND_BUTTON => {
+                    println!("Button 1 pressed");
+                    let hinstance = unsafe { GetModuleHandleW(null_mut()) };
+
+                    let expand_hwnd = unsafe {
+                        CreateWindowExW(
+                            0,
+                            wide_char("EXPANDED_WINDOW"),
+                            wide_char("Expanded Window"),
+                            WS_OVERLAPPEDWINDOW,
+                            100,
+                            100,
+                            100,
+                            100,
+                            hwnd,
+                            HMENU::default(),
+                            hinstance,
+                            null_mut(),
+                        )
+                    };
+
+                }
+                _ => {
+                    println!("Button not recognized");
+                }
+            }
             0
         }
         WM_DROPFILES => {
