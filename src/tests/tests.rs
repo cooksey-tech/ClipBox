@@ -7,9 +7,14 @@ mod tests {
 
     #[test]
     fn create_clipbox() {
+        ClipBox::new();
 
 
+        process::exit(0)
+    }
 
+    #[test]
+    fn delete_clipbox() {
 
         process::exit(0)
     }

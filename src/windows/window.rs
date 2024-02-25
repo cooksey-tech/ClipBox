@@ -23,12 +23,9 @@ use windows_sys::Win32::UI::Shell::{DragAcceptFiles, DragFinish, DragQueryFileW,
 
 use crate::constants::{ID_EXPAND_BUTTON, SS_ICON};
 use crate::enums::app::App;
-use crate::storage::files::file_drop;
 use crate::storage::clipbox::ClipBox;
 use crate::tools::encoding::wide_char;
 use crate::windows::components::buttons::expand_button;
-use crate::windows::icons::get_file_icon;
-// use crate::windows::procedure::{self, window_proc};
 
 pub fn foreground_window() -> (App, Option<HWND>) {
     // Retrieves a handle to the foreground window
@@ -247,8 +244,7 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             let new_ptr = Box::into_raw(Box::new(Arc::into_raw(arc)));
             unsafe { SetWindowLongPtrW(hwnd, GWLP_USERDATA, new_ptr as isize) };
 
-
-            file_drop(hdrop, &*clip_box_guard); // Pass a reference to the ClipBox
+            clip_box_guard.file_drop(hdrop);
             // it's best to keep file_count directly above the for..in loop
             // otherwise, the optimizer could create issues
             let file_count = unsafe { DragQueryFileW(hdrop, 0xFFFFFFFF, null_mut(), 0) };

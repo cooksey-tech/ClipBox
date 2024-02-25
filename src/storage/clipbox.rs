@@ -1,4 +1,6 @@
-use std::{env, fs, path::PathBuf, thread};
+use std::{env, fs, path::PathBuf, ptr::null_mut, thread};
+
+use windows_sys::Win32::UI::Shell::{DragQueryFileW, HDROP};
 
 use crate::{constants, windows::window};
 
@@ -41,16 +43,30 @@ impl ClipBox {
     }
 
     // Copy a file (or folder) to the box directory
-    pub fn add_file(from_path: PathBuf, file_path: &PathBuf) {
-        println!("STARTING ADD_FILE");
+    pub fn file_drop(&self, hdrop: HDROP) {
+        println!("STARTING FILE_DROP");
 
-        let file_name = file_path.file_name().expect("Failed to get file name");
-        println!("from: {:?}", file_name);
-        println!("to: {:?}", &from_path.join(file_name));
+        // get number of files droped
+        // 0xFFFFFFFF represents all files
+        let file_count = unsafe { DragQueryFileW(hdrop, 0xFFFFFFFF, null_mut(), 0) };
+        println!("file_count: {:?}", file_count);
 
-        // Copies the file to the box directory
-        std::fs::copy(file_path, &from_path.join(file_name))
-            .expect("Failed to copy file to box directory");
+        for i in 0..file_count {
+            let file_name_len = unsafe { DragQueryFileW(hdrop, i, null_mut(), 0) } + 1;
+            let mut file_name = vec![0u16; file_name_len as usize + 1];
+
+            // get file nmae
+            unsafe { DragQueryFileW(hdrop, i, file_name.as_mut_ptr(), file_name_len) };
+
+            // convert file name to string
+            let file_lossy = String::from_utf16_lossy(&file_name);
+            let file_name_string = file_lossy.trim_end_matches('\0');
+            println!("file_name_string: {:?}", file_name_string);
+            // copy file to box directory
+            // clip_box.add_file(&PathBuf::from(file_name_string));
+            self.copy_to(&PathBuf::from(file_name_string));
+            println!("completed add");
+        }
     }
 
     pub fn delete(self) {
