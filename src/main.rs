@@ -14,6 +14,7 @@ mod settings;
 mod tools;
 mod windows;
 mod storage;
+mod tests;
 
 
 fn main() {
