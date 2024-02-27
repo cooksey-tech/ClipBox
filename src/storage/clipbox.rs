@@ -16,13 +16,12 @@ pub fn base_path() -> PathBuf {
             .expect("Failed to create application data directory");
     }
 
-    return app_data_dir;
+    app_data_dir
 }
 
 #[derive(Debug)]
 pub struct ClipBox {
     pub path: PathBuf,
-    pub curr_path: RefCell<PathBuf>
 }
 
 impl ClipBox {
@@ -38,8 +37,6 @@ impl ClipBox {
         let clip_box = ClipBox {
             // location of the clipbox
             path: base_path().join(&box_name),
-            // curr_path used in copy_to to recurse through directories
-            curr_path: base_path().join(box_name).into(),
         };
         Self::create_window(&clip_box);
 
@@ -47,6 +44,7 @@ impl ClipBox {
     }
 
     // Copy a file (or folder) to the box directory
+    // Handles all files/folders dropped into the box
     pub fn file_drop(&self, hdrop: HDROP) {
         println!("STARTING FILE_DROP");
 
@@ -67,11 +65,17 @@ impl ClipBox {
             let file_name_string = file_lossy.trim_end_matches('\0');
             println!("file_name_string: {:?}", file_name_string);
             // copy file to box directory
-            // clip_box.add_file(&PathBuf::from(file_name_string));
 
-            // calculate folder names
             let from_dir = PathBuf::from(file_name_string);
-            self.copy_to(&self.path, from_dir);
+            let mut to_dir = self.path.clone();
+            if from_dir.is_dir() {
+                to_dir = self.path.join(from_dir.file_name()
+                    .expect("Failed to get file name"));
+
+                fs::create_dir_all(&to_dir)
+                .expect("Failed to create directory");
+            }
+            self.copy_to(&to_dir, from_dir);
             println!("completed add");
         }
     }
@@ -84,7 +88,7 @@ impl ClipBox {
 
     fn copy_to(&self, to_dir: &PathBuf, from_dir: PathBuf) {
         let folder_name = from_dir.file_name().expect("Failed to get file name");
-
+        println!("\nfolder_name: {:?}", folder_name);
         // if a file, copy to box directory and return
         if from_dir.is_file() {
             println!("is file: {:?}", from_dir);
@@ -92,7 +96,9 @@ impl ClipBox {
             std::fs::copy(from_dir, to_dir)
                 .expect("Failed to copy file to box directory");
             return;
-        } else if !to_dir.is_dir() { // if directory, create destination directory if it does not exist
+        };
+
+        if from_dir.is_dir() { // if directory, create destination directory
             fs::create_dir_all(to_dir)
                 .expect("Failed to create directory");
         };
@@ -109,8 +115,8 @@ impl ClipBox {
             let file_path = file.path();
 
             if file_type.is_dir() {
-                let new_dir = &to_dir.join(file.file_name());
-                self.copy_to(new_dir,file_path);
+                let new_dir = to_dir.join(file.file_name());
+                self.copy_to(&new_dir,file_path);
             } else {
                 let file_name = file.file_name();
                 let to_file = to_dir.join(file_name);
