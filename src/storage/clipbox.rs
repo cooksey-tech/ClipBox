@@ -1,4 +1,4 @@
-use std::{env, fs, path::PathBuf, ptr::null_mut, thread};
+use std::{cell::RefCell, env, fs, path::PathBuf, ptr::null_mut, thread};
 
 use windows_sys::Win32::UI::Shell::{DragQueryFileW, HDROP};
 
@@ -22,6 +22,7 @@ pub fn base_path() -> PathBuf {
 #[derive(Debug)]
 pub struct ClipBox {
     pub path: PathBuf,
+    pub curr_path: RefCell<PathBuf>
 }
 
 impl ClipBox {
@@ -35,7 +36,10 @@ impl ClipBox {
             .expect("Failed to create box directory");
 
         let clip_box = ClipBox {
-            path: base_path().join(box_name)
+            // location of the clipbox
+            path: base_path().join(&box_name),
+            // curr_path used in copy_to to recurse through directories
+            curr_path: base_path().join(box_name).into(),
         };
         Self::create_window(&clip_box);
 
@@ -64,7 +68,10 @@ impl ClipBox {
             println!("file_name_string: {:?}", file_name_string);
             // copy file to box directory
             // clip_box.add_file(&PathBuf::from(file_name_string));
-            self.copy_to(&PathBuf::from(file_name_string));
+
+            // calculate folder names
+            let from_dir = PathBuf::from(file_name_string);
+            self.copy_to(&self.path, from_dir);
             println!("completed add");
         }
     }
@@ -75,9 +82,8 @@ impl ClipBox {
             .expect("Failed to delete box directory");
     }
 
-    pub fn copy_to(&self, from_dir: &PathBuf) {
+    fn copy_to(&self, to_dir: &PathBuf, from_dir: PathBuf) {
         let folder_name = from_dir.file_name().expect("Failed to get file name");
-        let to_dir = &self.path.join(folder_name);
 
         // if a file, copy to box directory and return
         if from_dir.is_file() {
@@ -103,7 +109,8 @@ impl ClipBox {
             let file_path = file.path();
 
             if file_type.is_dir() {
-                self.copy_to(&file_path);
+                let new_dir = &to_dir.join(file.file_name());
+                self.copy_to(new_dir,file_path);
             } else {
                 let file_name = file.file_name();
                 let to_file = to_dir.join(file_name);
