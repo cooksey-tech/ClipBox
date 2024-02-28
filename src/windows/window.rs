@@ -3,9 +3,12 @@ use std::f32::consts::E;
 use std::ffi::{OsStr, OsString};
 use std::iter::once;
 use std::ops::Deref;
+use std::os::raw::c_void;
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
 use std::ptr::null_mut;
 use std::sync::{Arc, Mutex};
+use windows_sys::Win32::System::Com::IDataObject;
+use windows_sys::Win32::System::Ole::{DoDragDrop, OleInitialize};
 use windows_sys::Win32::Foundation::{WPARAM, LPARAM, LRESULT};
 use windows_sys::Win32::Graphics::Gdi::{BeginPaint, CreatePen, DeleteObject, DrawCaption, Ellipse, EndPaint, InvalidateRect, SelectObject, UpdateWindow, HBRUSH, PAINTSTRUCT, PS_SOLID};
 use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleExW, GetModuleHandleW};
@@ -101,31 +104,23 @@ pub fn create_window(clip_box: &ClipBox) {
     // Ensure functionality when running as admin
     if window <= 0 {
         panic!("Failed to create window");
-    } else {
-        // Set window to foreground
-        let success = unsafe { SetWindowPos(window, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE) };
-        if success == 0 {
+    }
+    let success = unsafe { SetWindowPos(window, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE) };
+    if success == 0 {
             panic!("Failed to set window to topmost");
         }
-
-        // Allow WM_DROPFILES messages
-        let success = unsafe { ChangeWindowMessageFilterEx(window, WM_DROPFILES, MSGFLT_ALLOW, std::ptr::null_mut()) };
-        if success == 0 {
+    let success = unsafe { ChangeWindowMessageFilterEx(window, WM_DROPFILES, MSGFLT_ALLOW, std::ptr::null_mut()) };
+    if success == 0 {
             panic!("Failed to change message filter for WM_DROPFILES");
         }
-
-        // Allow WM_COPYDATA messages
-        let success = unsafe { ChangeWindowMessageFilterEx(window, WM_COPYDATA, MSGFLT_ALLOW, std::ptr::null_mut()) };
-        if success == 0 {
+    let success = unsafe { ChangeWindowMessageFilterEx(window, WM_COPYDATA, MSGFLT_ALLOW, std::ptr::null_mut()) };
+    if success == 0 {
             panic!("Failed to change message filter for WM_COPYDATA");
         }
-
-        // Allow 0x0049 messages (WM_COPYGLOBALDATA)
-        let success = unsafe { ChangeWindowMessageFilterEx(window, 0x0049, MSGFLT_ALLOW, std::ptr::null_mut()) };
-        if success == 0 {
+    let success = unsafe { ChangeWindowMessageFilterEx(window, 0x0049, MSGFLT_ALLOW, std::ptr::null_mut()) };
+    if success == 0 {
             panic!("Failed to change message filter for 0x0049");
         }
-    }
 
 
     unsafe { DragAcceptFiles(window, true as i32) };
@@ -301,6 +296,11 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 let x = (rect.right - rect.left - icon_w) / 2;
                 let y = (rect.bottom - rect.top - icon_h) / 2;
 
+                // DoDragDrop process starts here
+                unsafe { OleInitialize(null_mut()) };
+                // this will contain the data to be dragged
+                let data_object = IDataObject::from(null_mut());
+
                 // create a box to hold the icon
                 let icon_box = unsafe {
                     CreateWindowExW(
@@ -318,6 +318,7 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                         null_mut(),
                     )
                 };
+
                 unsafe {
                     SendMessageW(icon_box, STM_SETICON, hicon as usize, lparam);
                 }
@@ -347,7 +348,7 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
         }
         _ => {
             // Handle other messages or pass to default handler
-            return unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) };
+            unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) }
         }
     }
 }
