@@ -36,7 +36,7 @@ pub fn foreground_window() -> (App, Option<HWND>) {
     };
     println!("foregroundWindow: {:?}", handle);
 
-    // Determine what application is running in the foreground.
+    // Determine what applicatio is running in the foreground.
     unsafe {
         let mut process_id: u32 = 0;
         GetWindowThreadProcessId(handle, &mut process_id);

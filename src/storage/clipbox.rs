@@ -1,4 +1,4 @@
-use std::{cell::RefCell, env, fs, path::PathBuf, ptr::null_mut, thread};
+use std::{env, fs, path::PathBuf, ptr::null_mut, thread};
 
 use windows_sys::Win32::UI::Shell::{DragQueryFileW, HDROP};
 
