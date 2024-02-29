@@ -19,10 +19,10 @@ mod tests;
 
 fn main() {
     // Sent when a drop-down menu or submenu is about to become active. This allows an application to modify the menu before it is displayed, without changing the entire menu.
-    match WM_INITMENUPOPUP {
-        0x0117 => println!("WM_INITMENUPOPUP"),
-        _ => println!("Not WM_INITMENUPOPUP"),
-    }
+    // match WM_INITMENUPOPUP {
+    //     0x0117 => println!("WM_INITMENUPOPUP"),
+    //     _ => println!("Not WM_INITMENUPOPUP"),
+    // }
 
     events::mouse::lisenter();
     let (app, handle) = window::foreground_window();

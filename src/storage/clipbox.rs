@@ -31,7 +31,7 @@ impl ClipBox {
         let timestamp = std::time::SystemTime::now();
         let box_name = format!("box_{}", timestamp.duration_since(std::time::UNIX_EPOCH).unwrap().as_secs());
 
-        std::fs::create_dir(&base_path().join(&box_name))
+        std::fs::create_dir(base_path().join(&box_name))
             .expect("Failed to create box directory");
 
         let clip_box = ClipBox {
@@ -103,10 +103,6 @@ impl ClipBox {
                 .expect("Failed to create directory");
         };
 
-        // join handle for multiple threads
-        let mut handles = Vec::new();
-
-
         for file in from_dir.read_dir().expect("Failed to read directory") {
             // file is referring to the file we are currently iterating over
             // this will be the file/folder we are copying
@@ -124,19 +120,11 @@ impl ClipBox {
                 println!("from: {:?}", file.path());
                 println!("to: {:?}", to_file);
 
-                let handle = thread::spawn(move || {
+                // Copies the file to the box directory
+                std::fs::copy(file_path, to_file)
+                .expect("Failed to copy file to box directory");
 
-                    // Copies the file to the box directory
-                    std::fs::copy(file_path, to_file)
-                    .expect("Failed to copy file to box directory");
-                });
-
-                handles.push(handle);
             }
-        }
-
-        for handle in handles {
-            handle.join().expect("Failed to join thread");
         }
 
     }
