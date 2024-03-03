@@ -89,19 +89,23 @@ impl ClipBox {
     fn copy_to(&self, to_dir: &PathBuf, from_dir: PathBuf) {
         let folder_name = from_dir.file_name().expect("Failed to get file name");
         println!("\nfolder_name: {:?}", folder_name);
+
         // if a file, copy to box directory and return
         if from_dir.is_file() {
             println!("is file: {:?}", from_dir);
+            println!("to_dir: {:?}", folder_name);
 
-            std::fs::copy(from_dir, to_dir)
+            std::fs::copy(&from_dir, to_dir.join(folder_name))
                 .expect("Failed to copy file to box directory");
             return;
-        };
+        }
+
 
         if from_dir.is_dir() { // if directory, create destination directory
             fs::create_dir_all(to_dir)
                 .expect("Failed to create directory");
-        };
+        }
+
 
         for file in from_dir.read_dir().expect("Failed to read directory") {
             // file is referring to the file we are currently iterating over
