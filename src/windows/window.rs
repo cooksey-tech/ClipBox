@@ -27,7 +27,7 @@ use windows_sys::Win32::UI::Shell::{DragAcceptFiles, DragFinish, DragQueryFileW,
 use crate::constants::{ID_EXPAND_BUTTON, SS_ICON};
 use crate::enums::app::App;
 use crate::storage::clipbox::ClipBox;
-use crate::tools::encoding::wide_char;
+use crate::tools::{encoding::wide_char, data_object::DataObject};
 use crate::windows::components::buttons::expand_button;
 
 pub fn foreground_window() -> (App, Option<HWND>) {
@@ -277,12 +277,15 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
         }
         WM_LBUTTONDOWN => {
             println!("WM_LBUTTONDOWN");
+            // Determine path of files to be dragged
+            
 
             // DoDragDrop process starts here
             unsafe { OleInitialize(null_mut()) };
             // this will contain the data to be dragged
 
-            
+
+
             0
         }
         WM_PAINT => {

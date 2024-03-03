@@ -9,7 +9,7 @@ pub fn expand_button(hwnd: HWND, pos: (i32, i32), width: i32, height: i32) {
     println!("Creating expand button");
 
 
-    return unsafe {
+    unsafe {
         CreateWindowExW(
             0,
             wide_char("BUTTON"), // Button class

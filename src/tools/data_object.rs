@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use windows_sys::{core::HRESULT, Win32::System::Com::{IAdviseSink, IEnumFORMATETC, IEnumSTATDATA, FORMATETC, STGMEDIUM}};
+use windows_sys::{core::HRESULT, Win32::System::{Com::{IAdviseSink, IEnumFORMATETC, IEnumSTATDATA, FORMATETC, STGMEDIUM}, Ole::CF_HDROP}};
 
 
 /// Built based on IDataObject interface from the Windows API
@@ -19,7 +19,8 @@ trait IDataObject {
 }
 
 #[repr(C)]
-struct DataObject{
+pub struct DataObject{
+    data_format: u16,
     file_path: PathBuf
 }
 
@@ -37,7 +38,13 @@ impl IDataObject for DataObject {
         unimplemented!()
     }
     fn SetData(pformatetc: FORMATETC, pmedium: STGMEDIUM, fRelease: bool) -> HRESULT {
-        unimplemented!()
+        println!("Setting data");
+
+        if (pformatetc.cfFormat == CF_HDROP as u16) {
+            println!("CF_HDROP");
+        }
+
+        0
     }
     fn EnumFormatEtc(dwDirection: u32, ppenumFormatEtc: *mut IEnumFORMATETC) -> HRESULT {
         unimplemented!()
