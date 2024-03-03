@@ -8,7 +8,7 @@ use std::os::windows::ffi::{OsStrExt, OsStringExt};
 use std::ptr::null_mut;
 use std::sync::{Arc, Mutex};
 use windows_sys::Win32::System::Com::IDataObject;
-use windows_sys::Win32::System::Ole::{DoDragDrop, OleInitialize};
+use windows_sys::Win32::System::Ole::{DoDragDrop, OleInitialize, DROPEFFECT_COPY, DROPEFFECT_MOVE};
 use windows_sys::Win32::Foundation::{WPARAM, LPARAM, LRESULT};
 use windows_sys::Win32::Graphics::Gdi::{BeginPaint, CreatePen, DeleteObject, DrawCaption, Ellipse, EndPaint, InvalidateRect, SelectObject, UpdateWindow, HBRUSH, PAINTSTRUCT, PS_SOLID};
 use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleExW, GetModuleHandleW};
@@ -251,7 +251,6 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 println!("file_name_string: {:?}", file_name_string);
 
                 // get file icon
-
                 let mut shfi: SHFILEINFOW = unsafe { std::mem::zeroed() };
                 let flags = SHGFI_ICON | SHGFI_LARGEICON;
                 let file_path: Vec<u16> = OsStr::new(file_name_string).encode_wide().chain(once(0)).collect();
@@ -282,9 +281,8 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             // DoDragDrop process starts here
             unsafe { OleInitialize(null_mut()) };
             // this will contain the data to be dragged
-            let data_object = IDataObject::from(null_mut());
-            unsafe { DoDragDrop(data_object, data_object, 0, null_mut()) };
 
+            
             0
         }
         WM_PAINT => {

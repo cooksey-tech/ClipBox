@@ -1,6 +1,6 @@
 use std::{env, fs, path::PathBuf, ptr::null_mut, thread};
 
-use windows_sys::Win32::UI::Shell::{DragQueryFileW, HDROP};
+use windows_sys::{core::HRESULT, Win32::{System::Com::FORMATETC, UI::Shell::{DragQueryFileW, HDROP}}};
 
 use crate::{constants, windows::window};
 
@@ -18,6 +18,7 @@ pub fn base_path() -> PathBuf {
 
     app_data_dir
 }
+
 
 #[derive(Debug)]
 pub struct ClipBox {
