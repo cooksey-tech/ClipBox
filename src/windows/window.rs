@@ -5,6 +5,7 @@ use std::iter::once;
 use std::ops::Deref;
 use std::os::raw::c_void;
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
+use std::path::PathBuf;
 use std::ptr::null_mut;
 use std::sync::{Arc, Mutex};
 use windows_sys::Win32::System::Com::IDataObject;
@@ -12,7 +13,7 @@ use windows_sys::Win32::System::Ole::{DoDragDrop, OleInitialize, DROPEFFECT_COPY
 use windows_sys::Win32::Foundation::{WPARAM, LPARAM, LRESULT};
 use windows_sys::Win32::Graphics::Gdi::{BeginPaint, CreatePen, DeleteObject, DrawCaption, Ellipse, EndPaint, InvalidateRect, SelectObject, UpdateWindow, HBRUSH, PAINTSTRUCT, PS_SOLID};
 use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleExW, GetModuleHandleW};
-use windows_sys::Win32::UI::WindowsAndMessaging::{ChangeWindowMessageFilterEx, DefWindowProcW, DispatchMessageW, DrawIcon, DrawIconEx, GetClientRect, GetIconInfo, GetMessageW, GetWindowLongPtrW, MessageBoxExW, PostQuitMessage, SendMessageW, SetWindowLongPtrW, SetWindowPos, TranslateMessage, BS_DEFPUSHBUTTON, CREATESTRUCTW, DI_NORMAL, GWLP_USERDATA, HCURSOR, HICON, HMENU, HWND_TOPMOST, MSG, MSGFLT_ALLOW, STM_SETICON, SWP_NOMOVE, SWP_NOSIZE, WM_COMMAND, WM_COPYDATA, WM_CREATE, WM_DESTROY, WM_DROPFILES, WM_LBUTTONDOWN, WM_PAINT, WS_CHILD, WS_EX_ACCEPTFILES, WS_EX_APPWINDOW, WS_TABSTOP, WS_VISIBLE};
+use windows_sys::Win32::UI::WindowsAndMessaging::{ChangeWindowMessageFilterEx, DefWindowProcW, DispatchMessageW, DrawIcon, DrawIconEx, GetClientRect, GetIconInfo, GetMessageW, GetWindowLongPtrW, MessageBoxExW, PostQuitMessage, SendMessageW, SetForegroundWindow, SetWindowLongPtrW, SetWindowPos, TranslateMessage, BS_DEFPUSHBUTTON, CREATESTRUCTW, DI_NORMAL, GWLP_USERDATA, HCURSOR, HICON, HMENU, HWND_TOPMOST, MSG, MSGFLT_ALLOW, STM_SETICON, SWP_NOMOVE, SWP_NOSIZE, WM_COMMAND, WM_COPYDATA, WM_CREATE, WM_DESTROY, WM_DROPFILES, WM_LBUTTONDOWN, WM_PAINT, WS_CHILD, WS_EX_ACCEPTFILES, WS_EX_APPWINDOW, WS_TABSTOP, WS_VISIBLE};
 use windows_sys::Win32::{
     Foundation::{GetLastError, HANDLE, HINSTANCE, HWND},
     System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION},
@@ -123,9 +124,12 @@ pub fn create_window(clip_box: &ClipBox) {
         }
 
 
-    unsafe { DragAcceptFiles(window, true as i32) };
+    unsafe {
+        DragAcceptFiles(window, true as i32);
+        ShowWindow(window, SW_SHOW);
+    };
 
-    unsafe { ShowWindow(window, SW_SHOW) };
+    unsafe {  };
     println!("window: {:?}", window);
 
     // Process Windows messages
@@ -155,6 +159,7 @@ pub fn create_window(clip_box: &ClipBox) {
     }
 }
 
+// extern "system" is telling the Rust compiler to use the "system" ABI (Application Binary Interface) for this function.
 pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     // println!("Processing message: {}", msg);
     static mut HICON: Option<HICON> = None;
@@ -247,13 +252,15 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 let mut file_name: [u16; 256] = [0; 256];
                 unsafe { DragQueryFileW(hdrop, i, &mut file_name as *mut u16, 256) };
                 let file_lossy = String::from_utf16_lossy(&file_name);
-                let file_name_string = file_lossy.trim_end_matches('\0');
-                println!("file_name_string: {:?}", file_name_string);
+                let file_name_string = PathBuf::from(&file_lossy.trim_end_matches('\0'));
+                let file_path = clip_box_guard.path.join(file_name_string.file_name().expect("Failed to get file name"));
+                println!("file_path: {:?}", file_path);
 
                 // get file icon
                 let mut shfi: SHFILEINFOW = unsafe { std::mem::zeroed() };
                 let flags = SHGFI_ICON | SHGFI_LARGEICON;
-                let file_path: Vec<u16> = OsStr::new(file_name_string).encode_wide().chain(once(0)).collect();
+                let file_path: Vec<u16> = OsStr::new(&file_path).encode_wide().chain(once(0)).collect();
+                println!("file_path: {:?}", String::from_utf16_lossy(file_path.borrow()).trim_end_matches('\0'));
                 let result = unsafe {
                     SHGetFileInfoW(
                         file_path.as_ptr(),
@@ -267,6 +274,9 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                     unsafe {
                         HICON = Some(shfi.hIcon);
                         InvalidateRect(hwnd, null_mut(), true as i32);
+                        // Send file/directory path to be attached to icon_box
+
+                        // Trigger a WM_PAINT message to redraw the window with the new icon
                         UpdateWindow(hwnd);
                     };
                 }
@@ -278,10 +288,10 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
         WM_LBUTTONDOWN => {
             println!("WM_LBUTTONDOWN");
             // Determine path of files to be dragged
-            
+
 
             // DoDragDrop process starts here
-            unsafe { OleInitialize(null_mut()) };
+            // unsafe { OleInitialize(null_mut()) };
             // this will contain the data to be dragged
 
 
@@ -307,6 +317,7 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
 
                 let x = (rect.right - rect.left - icon_w) / 2;
                 let y = (rect.bottom - rect.top - icon_h) / 2;
+
 
                 // create a box to hold the icon
                 let icon_box = unsafe {
