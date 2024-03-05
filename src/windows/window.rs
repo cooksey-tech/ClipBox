@@ -275,6 +275,7 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                         HICON = Some(shfi.hIcon);
                         InvalidateRect(hwnd, null_mut(), true as i32);
                         // Send file/directory path to be attached to icon_box
+                        
 
                         // Trigger a WM_PAINT message to redraw the window with the new icon
                         UpdateWindow(hwnd);
