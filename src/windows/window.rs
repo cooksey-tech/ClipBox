@@ -1,6 +1,6 @@
 use std::borrow::Borrow;
 use std::f32::consts::E;
-use std::ffi::{OsStr, OsString};
+use std::ffi::{CStr, OsStr, OsString};
 use std::iter::once;
 use std::ops::Deref;
 use std::os::raw::c_void;
@@ -13,7 +13,7 @@ use windows_sys::Win32::System::Ole::{DoDragDrop, OleInitialize, DROPEFFECT_COPY
 use windows_sys::Win32::Foundation::{LPARAM, LRESULT, POINT, WPARAM};
 use windows_sys::Win32::Graphics::Gdi::{BeginPaint, CreatePen, DeleteObject, DrawCaption, Ellipse, EndPaint, InvalidateRect, SelectObject, UpdateWindow, HBRUSH, PAINTSTRUCT, PS_SOLID};
 use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleExW, GetModuleHandleW};
-use windows_sys::Win32::UI::WindowsAndMessaging::{ChangeWindowMessageFilterEx, ChildWindowFromPoint, DefWindowProcW, DispatchMessageW, DrawIcon, DrawIconEx, GetClientRect, GetIconInfo, GetMessageW, GetWindowLongPtrW, MessageBoxExW, PostQuitMessage, SendMessageW, SetForegroundWindow, SetWindowLongPtrW, SetWindowPos, TranslateMessage, BS_DEFPUSHBUTTON, CREATESTRUCTW, DI_NORMAL, GWLP_USERDATA, HCURSOR, HICON, HMENU, HWND_TOPMOST, MSG, MSGFLT_ALLOW, STM_SETICON, SWP_NOMOVE, SWP_NOSIZE, WM_COMMAND, WM_COPYDATA, WM_CREATE, WM_DESTROY, WM_DROPFILES, WM_LBUTTONDOWN, WM_PAINT, WS_CHILD, WS_EX_ACCEPTFILES, WS_EX_APPWINDOW, WS_TABSTOP, WS_VISIBLE};
+use windows_sys::Win32::UI::WindowsAndMessaging::{ChangeWindowMessageFilterEx, ChildWindowFromPoint, DefWindowProcW, DispatchMessageW, DrawIcon, DrawIconEx, GetClientRect, GetCursorPos, GetIconInfo, GetMessageW, GetWindowLongPtrW, MessageBoxExW, PostQuitMessage, SendMessageW, SetForegroundWindow, SetWindowLongPtrW, SetWindowPos, TranslateMessage, BS_DEFPUSHBUTTON, CREATESTRUCTW, DI_NORMAL, GWLP_USERDATA, HCURSOR, HICON, HMENU, HWND_TOPMOST, MSG, MSGFLT_ALLOW, STM_SETICON, SWP_NOMOVE, SWP_NOSIZE, WM_COMMAND, WM_COPYDATA, WM_CREATE, WM_DESTROY, WM_DROPFILES, WM_LBUTTONDOWN, WM_PAINT, WS_CHILD, WS_EX_ACCEPTFILES, WS_EX_APPWINDOW, WS_TABSTOP, WS_VISIBLE};
 use windows_sys::Win32::{
     Foundation::{GetLastError, HANDLE, HINSTANCE, HWND},
     System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION},
@@ -163,7 +163,6 @@ pub fn create_window(clip_box: &ClipBox) {
 pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     // println!("Processing message: {}", msg);
     static mut HICON: Option<HICON> = None;
-    static mut DIR: Option<PathBuf> = None;
     match msg {
         WM_CREATE => {
             // Handle window creation
@@ -288,8 +287,38 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
         }
         WM_LBUTTONDOWN => {
             println!("WM_LBUTTONDOWN");
-            // Determine path of files to be dragged
-            let child_hwnd = unsafe { ChildWindowFromPoint(hwnd, POINT { x: 0, y: 0 }) };
+
+            // Get the child window under the cursor
+            let cursor_pos: *mut POINT = &mut POINT { x: 0, y: 0 };
+            match unsafe { GetCursorPos(cursor_pos) } {
+                0 => {
+                    println!("Failed to get cursor position");
+                }
+                _ => {
+                    println!("cursor_pos: {:?}", cursor_pos);
+                    let child_hwnd = unsafe { ChildWindowFromPoint(hwnd, POINT { x: 0, y: 0 }) };
+
+                    if child_hwnd != 0 {
+                        println!("child_hwnd: {:?}", child_hwnd);
+                        // Check if the child window has a file path
+                        let classname = wide_char("") as *mut u16;
+                        unsafe { GetClassNameW(child_hwnd, classname, 256) };
+                        println!("classname: {:?}", classname);
+
+                        unsafe {
+                            let file_info = GetWindowLongPtrW(child_hwnd, GWLP_USERDATA);
+                            let path_str = CStr::from_ptr(file_info as *const i8);
+                            let path = PathBuf::from(path_str.to_str().expect("Failed to convert to string"));
+                            println!("path: {:?}", path);
+                        };
+                    } else {
+                        println!("No child window found");
+                    }
+                }
+            }
+
+
+            // println!("child_hwnd: {:?}", child_hwnd);
 
             // DoDragDrop process starts here
             // unsafe { OleInitialize(null_mut()) };
@@ -322,7 +351,7 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 let icon_box = unsafe {
                     CreateWindowExW(
                         0,
-                        wide_char("STATIC"),
+                        wide_char("ICON_BOX"),
                         wide_char(""),
                         WS_VISIBLE | WS_CHILD | SS_ICON,
                         x,
