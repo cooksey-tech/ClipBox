@@ -3,7 +3,7 @@ use windows_sys::Win32::{Foundation::MAX_PATH, UI::{Shell::{SHGFI_ICON, SHGFI_LA
 use windows_sys::Win32::UI::Shell::SHFILEINFOW;
 use windows_sys::Win32::UI::Shell::SHGetFileInfoW;
 
-use crate::tools::encoding::wide_char;
+use crate::tools::encoding::WideChar;
 
 pub fn get_file_icon(path: &PathBuf) -> HICON {
     // Contains information about a file object.
@@ -17,7 +17,7 @@ pub fn get_file_icon(path: &PathBuf) -> HICON {
 
     unsafe {
         SHGetFileInfoW(
-            wide_char(path.to_str().expect("Failed to convert path to string")),
+            WideChar::from(path.to_str().expect("Failed to convert path to string")).as_ptr(),
             0,
             &mut shfi,
             std::mem::size_of::<SHFILEINFOW>() as u32,
@@ -27,4 +27,3 @@ pub fn get_file_icon(path: &PathBuf) -> HICON {
 
     shfi.hIcon
 }
-

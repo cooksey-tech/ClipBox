@@ -1,6 +1,5 @@
 // Purpose: Encoding utilities.
-use core::iter::once;
-use std::{ffi::OsStr, os::windows::ffi::OsStrExt};
+use std::{ffi::OsStr, iter::once, os::windows::ffi::OsStrExt};
 
 pub struct WideChar {
     data: Vec<u16>,
@@ -16,22 +15,27 @@ impl From<&str> for WideChar {
 }
 
 impl WideChar {
-    pub fn as_ptr(&self) -> *mut u16 {
-        self.ptr as *mut u16
+    pub fn as_ptr(&self) -> *const u16 {
+        self.ptr
     }
-}
-
-pub fn wide_char(text: &str) -> *const u16 {
-    OsStr::new(text).encode_wide().chain(once(0)).collect::<Vec<_>>().as_ptr()
-}
+    //#[cfg(debug_assertions)] // should not be a need to use this in release
+    pub unsafe fn to_string(&self) -> String {
+        use std::{ffi::OsString, os::windows::ffi::OsStringExt};
 
 
-/// Determines the length of a wide character string.
-/// A valid pionter must be passed to this function.
-pub unsafe fn wcslen(s: *const u16) -> usize {
-    let mut p = s;
-    while *p != 0 {
-        p = p.offset(1);
+        let len = WideChar::wcslen(self.ptr);
+        let slice = unsafe { std::slice::from_raw_parts(self.ptr, len) };
+
+        OsString::from_wide(slice).into_string().expect("Failed to convert to string")
     }
-    p.offset_from(s) as usize
+
+    /// Determines the length of a wide character string.
+    /// A valid pionter must be passed to this function.
+    unsafe fn wcslen(s: *const u16) -> usize {
+        let mut p = s;
+        while *p != 0 {
+            p = p.offset(1);
+        }
+        p.offset_from(s) as usize
+    }
 }

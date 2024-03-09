@@ -28,7 +28,7 @@ use windows_sys::Win32::UI::Shell::{DragAcceptFiles, DragFinish, DragQueryFileW,
 use crate::constants::{ID_EXPAND_BUTTON, SS_ICON};
 use crate::enums::app::App;
 use crate::storage::clipbox::ClipBox;
-use crate::tools::encoding::{wcslen, WideChar};
+use crate::tools::encoding::WideChar;
 use crate::tools::{data_object::DataObject};
 use crate::windows::components::buttons::expand_button;
 
@@ -302,22 +302,20 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                     if child_hwnd != 0 {
                         println!("child_hwnd: {:?}", child_hwnd);
                         // Check if the child window has a file path
-                        let classname = WideChar::from("").as_ptr();
+                        let classname = WideChar::from("");
+                        unsafe { GetClassNameW(child_hwnd, classname.as_ptr() as *mut u16, 256) };
+                        let class_string = unsafe { classname.to_string() };
+                        println!("classname: {:?}", class_string);
 
-                        unsafe { GetClassNameW(child_hwnd, classname, 256) };
+                        if class_string == "ICON_BOX" {
+                            unsafe {
+                                let file_info = GetWindowLongPtrW(child_hwnd, GWLP_USERDATA);
+                                let path_str = CStr::from_ptr(file_info as *const i8);
+                                let path = PathBuf::from(path_str.to_str().expect("Failed to convert to string"));
+                                println!("path: {:?}", path);
+                            };
+                        }
 
-                        let len = unsafe { wcslen(classname) };
-                        let slice = unsafe { std::slice::from_raw_parts(classname, len) };
-                        let classname = OsString::from_wide(slice).into_string().expect("Failed to convert to string");
-
-                        println!("classname: {:?}", classname);
-
-                        unsafe {
-                            let file_info = GetWindowLongPtrW(child_hwnd, GWLP_USERDATA);
-                            let path_str = CStr::from_ptr(file_info as *const i8);
-                            let path = PathBuf::from(path_str.to_str().expect("Failed to convert to string"));
-                            println!("path: {:?}", path);
-                        };
                     } else {
                         println!("No child window found");
                     }
