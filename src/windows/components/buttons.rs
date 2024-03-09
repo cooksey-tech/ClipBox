@@ -8,7 +8,6 @@ use crate::{constants::ID_EXPAND_BUTTON, tools::encoding::wide_char};
 pub fn expand_button(hwnd: HWND, pos: (i32, i32), width: i32, height: i32) {
     println!("Creating expand button");
 
-
     unsafe {
         CreateWindowExW(
             0,

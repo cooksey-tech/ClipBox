@@ -28,7 +28,8 @@ use windows_sys::Win32::UI::Shell::{DragAcceptFiles, DragFinish, DragQueryFileW,
 use crate::constants::{ID_EXPAND_BUTTON, SS_ICON};
 use crate::enums::app::App;
 use crate::storage::clipbox::ClipBox;
-use crate::tools::{encoding::wide_char, data_object::DataObject};
+use crate::tools::encoding::{wcslen, WideChar};
+use crate::tools::{data_object::DataObject};
 use crate::windows::components::buttons::expand_button;
 
 pub fn foreground_window() -> (App, Option<HWND>) {
@@ -68,7 +69,7 @@ pub fn create_window(clip_box: &ClipBox) {
     println!("clip_box_ptr: {:?}", clip_box_ptr);
 
     // Convert class_name to null-terminated wide string
-    let class_name = wide_char("ClipBox");
+    let class_name = WideChar::from("ClipBox").as_ptr();
 
     // register class
     let mut wc = WNDCLASSEXW {
@@ -200,8 +201,8 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                     let expand_hwnd = unsafe {
                         CreateWindowExW(
                             0,
-                            wide_char("EXPANDED_WINDOW"),
-                            wide_char("Expanded Window"),
+                            WideChar::from("EXPANDED_WINDOW").as_ptr(),
+                            WideChar::from("Expanded Window").as_ptr(),
                             WS_OVERLAPPEDWINDOW,
                             100,
                             100,
@@ -301,8 +302,14 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                     if child_hwnd != 0 {
                         println!("child_hwnd: {:?}", child_hwnd);
                         // Check if the child window has a file path
-                        let classname = wide_char("") as *mut u16;
+                        let classname = WideChar::from("").as_ptr();
+
                         unsafe { GetClassNameW(child_hwnd, classname, 256) };
+
+                        let len = unsafe { wcslen(classname) };
+                        let slice = unsafe { std::slice::from_raw_parts(classname, len) };
+                        let classname = OsString::from_wide(slice).into_string().expect("Failed to convert to string");
+
                         println!("classname: {:?}", classname);
 
                         unsafe {
@@ -351,8 +358,8 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 let icon_box = unsafe {
                     CreateWindowExW(
                         0,
-                        wide_char("ICON_BOX"),
-                        wide_char(""),
+                        WideChar::from("ICON_BOX").as_ptr(),
+                        WideChar::from("").as_ptr(),
                         WS_VISIBLE | WS_CHILD | SS_ICON,
                         x,
                         y,
