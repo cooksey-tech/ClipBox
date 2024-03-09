@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 use windows_sys::Win32::System::Com::IDataObject;
 use windows_sys::Win32::System::Ole::{DoDragDrop, OleInitialize, DROPEFFECT_COPY, DROPEFFECT_MOVE};
 use windows_sys::Win32::Foundation::{LPARAM, LRESULT, POINT, WPARAM};
-use windows_sys::Win32::Graphics::Gdi::{BeginPaint, CreatePen, DeleteObject, DrawCaption, Ellipse, EndPaint, InvalidateRect, SelectObject, UpdateWindow, HBRUSH, PAINTSTRUCT, PS_SOLID};
+use windows_sys::Win32::Graphics::Gdi::{BeginPaint, CreatePen, CreateSolidBrush, DeleteObject, DrawCaption, Ellipse, EndPaint, InvalidateRect, SelectObject, UpdateWindow, COLOR_WINDOW, HBRUSH, HOLLOW_BRUSH, PAINTSTRUCT, PS_SOLID};
 use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleExW, GetModuleHandleW};
 use windows_sys::Win32::UI::WindowsAndMessaging::{ChangeWindowMessageFilterEx, ChildWindowFromPoint, DefWindowProcW, DispatchMessageW, DrawIcon, DrawIconEx, GetClientRect, GetCursorPos, GetIconInfo, GetMessageW, GetWindowLongPtrW, MessageBoxExW, PostQuitMessage, SendMessageW, SetForegroundWindow, SetWindowLongPtrW, SetWindowPos, TranslateMessage, BS_DEFPUSHBUTTON, CREATESTRUCTW, DI_NORMAL, GWLP_USERDATA, HCURSOR, HICON, HMENU, HWND_TOPMOST, MSG, MSGFLT_ALLOW, STM_SETICON, SWP_NOMOVE, SWP_NOSIZE, WM_COMMAND, WM_COPYDATA, WM_CREATE, WM_DESTROY, WM_DROPFILES, WM_LBUTTONDOWN, WM_PAINT, WS_CHILD, WS_EX_ACCEPTFILES, WS_EX_APPWINDOW, WS_TABSTOP, WS_VISIBLE};
 use windows_sys::Win32::{
@@ -164,6 +164,8 @@ pub fn create_window(clip_box: &ClipBox) {
 pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     // println!("Processing message: {}", msg);
     static mut HICON: Option<HICON> = None;
+    static mut ICON_BOX: Option<HWND> = None;
+
     match msg {
         WM_CREATE => {
             // Handle window creation
@@ -296,8 +298,8 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                     println!("Failed to get cursor position");
                 }
                 _ => {
-                    println!("cursor_pos: {:?}", cursor_pos);
-                    let child_hwnd = unsafe { ChildWindowFromPoint(hwnd, POINT { x: 0, y: 0 }) };
+                    unsafe { println!("cursor_pos: {:?}", (*cursor_pos).x) };
+                    let child_hwnd = unsafe { ChildWindowFromPoint(hwnd, POINT { x: (*cursor_pos).x, y: (*cursor_pos).y }) };
 
                     if child_hwnd != 0 {
                         println!("child_hwnd: {:?}", child_hwnd);
@@ -351,31 +353,55 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 let x = (rect.right - rect.left - icon_w) / 2;
                 let y = (rect.bottom - rect.top - icon_h) / 2;
 
+                if unsafe { ICON_BOX }.is_none()
+                    || unsafe { ICON_BOX }.expect("Failed to get ICON_BOX") == HWND::default() {
+                    // create icon_box class
+                    let class_name = WideChar::from("ICON_BOX").as_ptr();
+                    let icon_class = WNDCLASSEXW {
+                        cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
+                        style: 0,
+                        lpfnWndProc: Some(DefWindowProcW), // we don't need to handle any messages for this class
+                        cbClsExtra: 0,
+                        cbWndExtra: 0,
+                        hInstance: unsafe { GetModuleHandleW(null_mut()) } as HINSTANCE,
+                        hIcon: hicon,
+                        hCursor: HCURSOR::default(),
+                        hbrBackground: unsafe { CreateSolidBrush(0x0000FF) }, // use the default window color
+                        lpszMenuName: null_mut(),
+                        lpszClassName: class_name,
+                        hIconSm: hicon,
+                    };
+                    unsafe { RegisterClassExW(&icon_class) };
 
-                // create a box to hold the icon
-                let icon_box = unsafe {
-                    CreateWindowExW(
-                        0,
-                        WideChar::from("ICON_BOX").as_ptr(),
-                        WideChar::from("").as_ptr(),
-                        WS_VISIBLE | WS_CHILD | SS_ICON,
-                        x,
-                        y,
-                        icon_w,
-                        icon_h,
-                        hwnd,
-                        HMENU::default(),
-                        GetModuleHandleW(null_mut()),
-                        null_mut(),
-                    )
-                };
-                // set file path to icon_box
-                let file_path = unsafe { GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *const u16 };
-                unsafe { SetWindowLongPtrW(icon_box, GWLP_USERDATA, file_path as isize) };
+                    // create a box to hold the icon
+                    let icon_box = unsafe {
+                        CreateWindowExW(
+                            0,
+                            class_name,
+                            WideChar::from("ICON").as_ptr(),
+                            WS_VISIBLE | WS_CHILD | SS_ICON,
+                            x,
+                            y,
+                            icon_w,
+                            icon_h,
+                            hwnd,
+                            HMENU::default(),
+                            icon_class.hInstance,
+                            null_mut(),
+                        )
+                    };
 
-                unsafe {
-                    SendMessageW(icon_box, STM_SETICON, hicon as usize, lparam);
-                }
+                    unsafe { ICON_BOX = Some(icon_box) };
+
+                // // set file path to icon_box
+                // let file_path = unsafe { GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *const u16 };
+                // unsafe { SetWindowLongPtrW(icon_box, GWLP_USERDATA, file_path as isize) };
+
+                // unsafe {
+                //     SendMessageW(icon_box, STM_SETICON, hicon as usize, lparam);
+                // }
+                let icon_hnd = unsafe { BeginPaint(icon_box, &mut ps) };
+
 
                 unsafe { DrawIconEx(hdc,
                     x,
@@ -394,8 +420,10 @@ pub extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 let px = (rect.right - rect.left - width) / 2;
                 let py = rect.bottom - (height + 10);
                 expand_button(hwnd, (px, py), width, height);
-
+                }
             }
+
+
             unsafe { EndPaint(hwnd, &ps) };
 
             0
