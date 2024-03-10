@@ -111,8 +111,9 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
                 // get file icon
                 let mut shfi: SHFILEINFOW = unsafe { std::mem::zeroed() };
                 let flags = SHGFI_ICON | SHGFI_LARGEICON;
-                let file_path: Vec<u16> = OsStr::new(&file_path).encode_wide().chain(once(0)).collect();
-                println!("file_path: {:?}", String::from_utf16_lossy(file_path.borrow()).trim_end_matches('\0'));
+                // convert file_path to a null-terminated wide string
+                let file_path = WideChar::from(file_path.to_str().expect("Failed to convert to string"));
+
                 let result = unsafe {
                     SHGetFileInfoW(
                         file_path.as_ptr(),

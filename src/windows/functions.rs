@@ -8,14 +8,15 @@ use crate::tools::encoding::WideChar;
 
 pub fn get_child_window(hwnd: HWND) {
     let cursor_pos: *mut POINT = &mut POINT { x: 0, y: 0 };
+    // Get the cursor position (x, y)
     match unsafe { GetCursorPos(cursor_pos) } {
         0 => {
             println!("Failed to get cursor position");
         }
         _ => {
-            //
+            // Convert the cursor position to client coordinates
             unsafe { ScreenToClient(hwnd, cursor_pos) };
-            
+
             let child_hwnd = unsafe { ChildWindowFromPoint(hwnd, *cursor_pos) };
             println!("\nchild_hwnd: {:?}", child_hwnd);
 
@@ -29,10 +30,16 @@ pub fn get_child_window(hwnd: HWND) {
 
                 if class_string == "ICON_BOX" {
                     unsafe {
-                        let file_info = GetWindowLongPtrW(child_hwnd, GWLP_USERDATA);
-                        let path_str = CStr::from_ptr(file_info as *const i8);
-                        let path = PathBuf::from(path_str.to_str().expect("Failed to convert to string"));
-                        println!("path: {:?}", path);
+                        // We can access isize as u16 because we know that the pointer is a u16
+                        let file_info = GetWindowLongPtrW(child_hwnd, GWLP_USERDATA) as *const u16;
+                        println!("file_info: {:?}", file_info);
+
+                        let path_wide = WideChar::from_ptr(file_info);
+                        println!("path_wide: {:?}", path_wide);
+
+                        let path_str = path_wide.to_string();
+
+                        println!("path: {:?}", path_str);
                     };
                 }
 
