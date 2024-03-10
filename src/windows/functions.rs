@@ -1,6 +1,6 @@
 use std::{ffi::CStr, path::PathBuf};
 
-use windows_sys::Win32::{Foundation::{HWND, POINT}, UI::WindowsAndMessaging::{ChildWindowFromPoint, GetClassNameW, GetCursorPos, GetWindowLongPtrW, GWLP_USERDATA}};
+use windows_sys::Win32::{Foundation::{HWND, POINT}, Graphics::Gdi::ScreenToClient, UI::WindowsAndMessaging::{ChildWindowFromPoint, ChildWindowFromPointEx, GetClassNameW, GetCursorPos, GetWindowLongPtrW, GWLP_USERDATA}};
 
 use crate::tools::encoding::WideChar;
 
@@ -13,8 +13,11 @@ pub fn get_child_window(hwnd: HWND) {
             println!("Failed to get cursor position");
         }
         _ => {
-            unsafe { println!("cursor_pos: {:?}", (*cursor_pos).x) };
-            let child_hwnd = unsafe { ChildWindowFromPoint(hwnd, POINT { x: (*cursor_pos).x, y: (*cursor_pos).y }) };
+            //
+            unsafe { ScreenToClient(hwnd, cursor_pos) };
+            
+            let child_hwnd = unsafe { ChildWindowFromPoint(hwnd, *cursor_pos) };
+            println!("\nchild_hwnd: {:?}", child_hwnd);
 
             if child_hwnd != 0 {
                 println!("child_hwnd: {:?}", child_hwnd);
