@@ -124,14 +124,68 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
                     )
                 };
                 if result != 0 {
-                    unsafe {
-                        HICON = Some(shfi.hIcon);
-                        InvalidateRect(hwnd, null_mut(), true as i32);
-                        // Send file/directory path to be attached to icon_box
-                        SetWindowLongPtrW(hwnd, GWLP_USERDATA, file_path.as_ptr() as isize);
-                        // Trigger a WM_PAINT message to redraw the window with the new icon
-                        UpdateWindow(hwnd);
-                    };
+
+                    HICON = Some(shfi.hIcon);
+                    InvalidateRect(hwnd, null_mut(), true as i32);
+                    // Create a new icon_box
+
+                    if HICON.is_some() {
+                        let hicon = HICON.expect("Failed to get HICON");
+
+                        let class_name = WideChar::from("ICON_BOX").as_ptr();
+                        let icon_class = WNDCLASSEXW {
+                            cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
+                            style: CS_OWNDC,
+                            lpfnWndProc: Some(icon_box_proc), // we don't need to handle any messages for this class
+                            cbClsExtra: 0,
+                            cbWndExtra: 0,
+                            hInstance: unsafe { GetModuleHandleW(null_mut()) } as HINSTANCE,
+                            hIcon: hicon,
+                            hCursor: HCURSOR::default(),
+                            hbrBackground: unsafe { CreateSolidBrush(0x0000FF) }, // use the default window color
+                            lpszMenuName: null_mut(),
+                            lpszClassName: class_name,
+                            hIconSm: hicon,
+                        };
+                        unsafe { RegisterClassExW(&icon_class) };
+
+                        // get window dimensions
+                        // get window dimensions
+                        let mut rect = unsafe { std::mem::zeroed() };
+                        unsafe { GetClientRect(hwnd, &mut rect) };
+
+                        // get icon dimensions
+                        let mut icon_info = unsafe { std::mem::zeroed() };
+                        unsafe { GetIconInfo(hicon, &mut icon_info) };
+                        let icon_w= icon_info.xHotspot as i32 * 2;
+                        let icon_h = icon_info.yHotspot as i32 * 2;
+
+                        let x = (rect.right - rect.left - icon_w) / 2;
+                        let y = (rect.bottom - rect.top - icon_h) / 2;
+                        // create a box to hold the icon
+                        let icon_box = unsafe {
+                            CreateWindowExW(
+                                0,
+                                class_name,
+                                WideChar::from("ICON").as_ptr(),
+                                WS_VISIBLE | WS_CHILD,
+                                x,
+                                y,
+                                icon_w,
+                                icon_h,
+                                hwnd,
+                                HMENU::default(),
+                                icon_class.hInstance,
+                                null_mut(),
+                            )
+                        };
+                    }
+
+                    // Send file/directory path to be attached to icon_box
+                    SetWindowLongPtrW(hwnd, GWLP_USERDATA, file_path.as_ptr() as isize);
+                    // Trigger a WM_PAINT message to redraw the window with the new icon
+                    UpdateWindow(hwnd);
+
                 }
             }
             unsafe { DragFinish(hdrop) };
@@ -175,64 +229,8 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
                 let x = (rect.right - rect.left - icon_w) / 2;
                 let y = (rect.bottom - rect.top - icon_h) / 2;
 
-                if unsafe { ICON_BOX }.is_none()
-                    || unsafe { ICON_BOX }.expect("Failed to get ICON_BOX") == HWND::default() {
-                    // create icon_box class
-                    let class_name = WideChar::from("ICON_BOX").as_ptr();
-                    let icon_class = WNDCLASSEXW {
-                        cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
-                        style: CS_OWNDC,
-                        lpfnWndProc: Some(icon_box_proc), // we don't need to handle any messages for this class
-                        cbClsExtra: 0,
-                        cbWndExtra: 0,
-                        hInstance: unsafe { GetModuleHandleW(null_mut()) } as HINSTANCE,
-                        hIcon: hicon,
-                        hCursor: HCURSOR::default(),
-                        hbrBackground: unsafe { CreateSolidBrush(0x0000FF) }, // use the default window color
-                        lpszMenuName: null_mut(),
-                        lpszClassName: class_name,
-                        hIconSm: hicon,
-                    };
-                    unsafe { RegisterClassExW(&icon_class) };
-
-                    // create a box to hold the icon
-                    let icon_box = unsafe {
-                        CreateWindowExW(
-                            0,
-                            class_name,
-                            WideChar::from("ICON").as_ptr(),
-                            WS_VISIBLE | WS_CHILD,
-                            x,
-                            y,
-                            icon_w,
-                            icon_h,
-                            hwnd,
-                            HMENU::default(),
-                            icon_class.hInstance,
-                            null_mut(),
-                        )
-                    };
-
-                    println!("icon_box: {:?}", icon_box);
-
-                    unsafe { ICON_BOX = Some(icon_box) };
-
-                // // set file path to icon_box
-                // let file_path = unsafe { GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *const u16 };
-                // unsafe { SetWindowLongPtrW(icon_box, GWLP_USERDATA, file_path as isize) };
-
-                // unsafe {
-                //     SendMessageW(icon_box, STM_SETICON, hicon as usize, lparam);
-                // }
-                let mut ps: PAINTSTRUCT = unsafe { std::mem::zeroed() };
-                let icon_hdc = unsafe { BeginPaint(icon_box, &mut ps) };
-
-                println!("icon_hdc: {:?}", icon_hdc);
-                println!("width: {:?}", icon_w);
-                println!("height: {:?}", icon_h);
-
                 // draw the icon
-                let result = unsafe { DrawIconEx(icon_hdc,
+                let result = unsafe { DrawIconEx(hdc,
                     x,
                     y,
                     hicon,
@@ -249,15 +247,12 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
                     println!("error: {:?}", error);
                 }
 
-                unsafe { EndPaint(icon_box, &mut ps); }
                 // create a button to expand items
                 let width = 80;
                 let height = 20;
                 let px = (rect.right - rect.left - width) / 2;
                 let py = rect.bottom - (height + 10);
                 expand_button(hwnd, (px, py), width, height);
-            }
-
             }
 
 
