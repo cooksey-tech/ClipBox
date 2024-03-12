@@ -179,10 +179,24 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
                                 null_mut(),
                             )
                         };
+
+                        let temp_ptr = file_path.as_ptr() as isize;
+                        println!("BEFORE: {:?}", temp_ptr);
+                        let path_wide = WideChar::from_ptr(temp_ptr as *const u16);
+                        println!("path_wide: {:?}", path_wide);
+
+                        let str_path = path_wide.to_string_lossy();
+                        println!("icon_box path: {:?}", str_path);
+
+                        println!("BEFORE HWND: {:?}", icon_box);
+
+                        // let path_ptr = Box::into_raw(Box::new(file_path)) as isize;
+                        // println!("path_ptr(before): {:?}", path_ptr);
+                        let path_ptr = Box::into_raw(Box::new(file_path)) as isize;
+                        // Send file/directory path to be attached to icon_box
+                        SetWindowLongPtrW(icon_box, GWLP_USERDATA, path_ptr);
                     }
 
-                    // Send file/directory path to be attached to icon_box
-                    SetWindowLongPtrW(hwnd, GWLP_USERDATA, file_path.as_ptr() as isize);
                     // Trigger a WM_PAINT message to redraw the window with the new icon
                     UpdateWindow(hwnd);
 

@@ -19,14 +19,13 @@ impl WideChar {
         self.ptr
     }
     pub unsafe fn from_ptr(ptr: *const u16) -> Self {
-        let mut len = WideChar::wcslen(ptr);
+        let len = WideChar::wcslen(ptr);
         let _wide: Vec<u16> = std::slice::from_raw_parts(ptr, len as usize).to_owned();
         WideChar { _wide, ptr }
     }
     //#[cfg(debug_assertions)] // should not be a need to use this in release
     pub unsafe fn to_string(&self) -> String {
         use std::{ffi::OsString, os::windows::ffi::OsStringExt};
-
 
         let len = WideChar::wcslen(self.ptr);
         let slice = unsafe { std::slice::from_raw_parts(self.ptr, len) };

@@ -18,31 +18,38 @@ pub fn get_child_window(hwnd: HWND){
             unsafe { ScreenToClient(hwnd, cursor_pos) };
 
             let child_hwnd = unsafe { ChildWindowFromPoint(hwnd, *cursor_pos) };
-            println!("\nchild_hwnd: {:?}", child_hwnd);
+            println!("child_hwnd: {:?}", child_hwnd);
 
             if child_hwnd != 0 {
-                println!("child_hwnd: {:?}", child_hwnd);
+
                 // Check if the child window has a file path
                 let classname = WideChar::from("");
                 unsafe { GetClassNameW(child_hwnd, classname.as_ptr() as *mut u16, 256) };
                 let class_string = unsafe { classname.to_string() };
-                println!("classname: {:?}", class_string);
+                ;
 
                 if class_string == "ICON_BOX" {
                     unsafe {
                         // We can access isize as u16 because we know that the pointer is a u16
-                        let file_info = GetWindowLongPtrW(child_hwnd, GWLP_USERDATA) as *const u16;
+                        let file_info = GetWindowLongPtrW(child_hwnd, GWLP_USERDATA);
+                        println!("AFTER: {:?}", file_info);
                         let error = GetLastError();
-                        println!("error: {:?}", error);
 
-                        println!("file_info: {:?}", file_info);
+                        let path_box = Box::from_raw(file_info as *mut WideChar);
+                        let path = path_box.to_string();
 
-                        let path_wide = WideChar::from_ptr(file_info);
-                        println!("path_wide: {:?}", path_wide);
+                        println!("path_ptr(after): {:?}", path);
 
-                        let path_str = path_wide.to_string();
+                        // let path = WideChar::from_ptr(*path_box as *const u16).to_string_lossy();
 
-                        println!("path: {:?}", path_str);
+                        // println!("path: {:?}", path);
+
+                        // let path_wide = WideChar::from_ptr(file_info as *const u16);
+
+
+                        // let path_str = path_wide.to_string_lossy();
+
+
                     };
                 }
 
