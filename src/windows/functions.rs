@@ -26,17 +26,17 @@ pub fn get_child_window(hwnd: HWND){
                 let classname = WideChar::from("");
                 unsafe { GetClassNameW(child_hwnd, classname.as_ptr() as *mut u16, 256) };
                 let class_string = unsafe { classname.to_string() };
-                ;
 
                 if class_string == "ICON_BOX" {
                     unsafe {
                         // We can access isize as u16 because we know that the pointer is a u16
                         let file_info = GetWindowLongPtrW(child_hwnd, GWLP_USERDATA);
                         println!("AFTER: {:?}", file_info);
-                        let error = GetLastError();
 
                         let path_box = Box::from_raw(file_info as *mut WideChar);
                         let path = path_box.to_string();
+                        // ensure that the memory is not deallocated
+                        Box::leak(path_box);
 
                         println!("path_ptr(after): {:?}", path);
 

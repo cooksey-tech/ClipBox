@@ -207,7 +207,7 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
             0
         }
         WM_LBUTTONDOWN => {
-            println!("WM_LBUTTONDOWN");
+            println!("\nWM_LBUTTONDOWN");
 
             // Get the child window under the cursor
             get_child_window(hwnd);
