@@ -4,7 +4,7 @@
 
 use std::{borrow::Borrow, ffi::OsStr, iter::once, os::windows::ffi::OsStrExt, path::PathBuf, ptr::null_mut, sync::{Arc, Mutex}};
 
-use windows_sys::Win32::{Foundation::{GetLastError, HINSTANCE, HWND, LPARAM, LRESULT, WPARAM}, Graphics::Gdi::{BeginPaint, CreateSolidBrush, EndPaint, InvalidateRect, UpdateWindow, HBRUSH, PAINTSTRUCT}, System::LibraryLoader::GetModuleHandleW, UI::{Shell::{DragFinish, DragQueryFileW, SHGetFileInfoW, HDROP, SHFILEINFOW, SHGFI_ICON, SHGFI_LARGEICON}, WindowsAndMessaging::{CreateWindowExW, DefWindowProcW, DrawIconEx, GetClientRect, GetIconInfo, GetWindowLongPtrW, PostQuitMessage, RegisterClassExW, SetWindowLongPtrW, CREATESTRUCTW, CS_OWNDC, DI_NORMAL, GWLP_USERDATA, HCURSOR, HICON, HMENU, WM_COMMAND, WM_CREATE, WM_DESTROY, WM_DROPFILES, WM_LBUTTONDOWN, WM_PAINT, WNDCLASSEXW, WS_CHILD, WS_OVERLAPPEDWINDOW, WS_VISIBLE}}};
+use windows_sys::Win32::{Foundation::{GetLastError, HINSTANCE, HWND, LPARAM, LRESULT, RECT, WPARAM}, Graphics::Gdi::{BeginPaint, CreateEllipticRgn, CreateSolidBrush, EndPaint, InvalidateRect, SetWindowRgn, UpdateWindow, HBRUSH, PAINTSTRUCT}, System::{LibraryLoader::GetModuleHandleW, Ole::OleInitialize}, UI::{Shell::{DragFinish, DragQueryFileW, SHGetFileInfoW, HDROP, SHFILEINFOW, SHGFI_ICON, SHGFI_LARGEICON}, WindowsAndMessaging::{CreateWindowExW, DefWindowProcW, DrawIconEx, GetClassNameW, GetClientRect, GetIconInfo, GetWindowLongPtrW, PostQuitMessage, RegisterClassExW, SetWindowLongPtrW, CREATESTRUCTW, CS_OWNDC, DI_NORMAL, GWLP_USERDATA, HCURSOR, HICON, HMENU, WM_COMMAND, WM_CREATE, WM_DESTROY, WM_DROPFILES, WM_LBUTTONDOWN, WM_PAINT, WNDCLASSEXW, WS_CHILD, WS_OVERLAPPEDWINDOW, WS_VISIBLE}}};
 
 use crate::{constants::ID_EXPAND_BUTTON, storage::clipbox::ClipBox, tools::encoding::WideChar, windows::{components::buttons::expand_button, functions::get_child_window, procedures::icon_box_proc}};
 
@@ -13,7 +13,7 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
 
     // println!("Processing message: {}", msg);
     static mut HICON: Option<HICON> = None;
-    static mut ICON_BOX: Option<HWND> = None;
+    static mut ICON_BOXES: Vec<HWND> = Vec::new();
 
     match msg {
         WM_CREATE => {
@@ -142,7 +142,7 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
                             hInstance: unsafe { GetModuleHandleW(null_mut()) } as HINSTANCE,
                             hIcon: hicon,
                             hCursor: HCURSOR::default(),
-                            hbrBackground: unsafe { CreateSolidBrush(0x0000FF) }, // use the default window color
+                            hbrBackground: HBRUSH::default(), // use the default window color
                             lpszMenuName: null_mut(),
                             lpszClassName: class_name,
                             hIconSm: hicon,
@@ -157,8 +157,8 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
                         // get icon dimensions
                         let mut icon_info = unsafe { std::mem::zeroed() };
                         unsafe { GetIconInfo(hicon, &mut icon_info) };
-                        let icon_w= icon_info.xHotspot as i32 * 2;
-                        let icon_h = icon_info.yHotspot as i32 * 2;
+                        let icon_w= icon_info.xHotspot as i32 * 4;
+                        let icon_h = icon_info.yHotspot as i32 * 4;
 
                         let x = (rect.right - rect.left - icon_w) / 2;
                         let y = (rect.bottom - rect.top - icon_h) / 2;
@@ -180,6 +180,19 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
                             )
                         };
 
+                        // make icon_box circular
+                        let mut rect = RECT { left: 0, top: 0, right: 0, bottom: 0 };
+                        unsafe { GetClientRect(icon_box, &mut rect) };
+                        let width = rect.right - rect.left;
+                        let height = rect.bottom - rect.top;
+                        let radius = std::cmp::min(width, height) / 2;
+                        // create a circular region
+                        let hrgn = unsafe { CreateEllipticRgn(rect.left, rect.top, rect.left + radius * 2, rect.top + radius * 2) };
+                        // set the window's region
+                        unsafe { SetWindowRgn(icon_box, hrgn, windows_sys::Win32::Foundation::TRUE) };
+
+                        ICON_BOXES.push(icon_box);
+
                         let temp_ptr = file_path.as_ptr() as isize;
                         println!("BEFORE: {:?}", temp_ptr);
                         let path_wide = WideChar::from_ptr(temp_ptr as *const u16);
@@ -197,6 +210,19 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
                         SetWindowLongPtrW(icon_box, GWLP_USERDATA, path_ptr);
                     }
 
+                    if ICON_BOXES.len() > 0 {
+                        // get window dimensions
+                        let mut rect = unsafe { std::mem::zeroed() };
+                        unsafe { GetClientRect(hwnd, &mut rect) };
+
+                        // // create a button to expand items
+                        let width = 80;
+                        let height = 20;
+                        let px = (rect.right - rect.left - width) / 2;
+                        let py = rect.bottom - (height + 10);
+                        expand_button(hwnd, (px, py), width, height);
+                    }
+
                     // Trigger a WM_PAINT message to redraw the window with the new icon
                     UpdateWindow(hwnd);
 
@@ -209,16 +235,13 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
         WM_LBUTTONDOWN => {
             println!("\nWM_LBUTTONDOWN");
 
-            // Get the child window under the cursor
-            get_child_window(hwnd);
-
-
-
-            // println!("child_hwnd: {:?}", child_hwnd);
+            println!("ICON_BOXES: {:?}", ICON_BOXES);
 
             // DoDragDrop process starts here
-            // unsafe { OleInitialize(null_mut()) };
+            unsafe { OleInitialize(null_mut()) };
             // this will contain the data to be dragged
+
+
 
             0
         }
@@ -228,46 +251,6 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
             let mut ps: PAINTSTRUCT = unsafe { std::mem::zeroed() };
             let hdc = unsafe { BeginPaint(hwnd, &mut ps) };
             println!("hdc: {:?}", hdc);
-
-            if let Some(hicon) = unsafe { HICON } {
-                // get window dimensions
-                let mut rect = unsafe { std::mem::zeroed() };
-                unsafe { GetClientRect(hwnd, &mut rect) };
-
-                // get icon dimensions
-                let mut icon_info = unsafe { std::mem::zeroed() };
-                unsafe { GetIconInfo(hicon, &mut icon_info) };
-                let icon_w= icon_info.xHotspot as i32 * 2;
-                let icon_h = icon_info.yHotspot as i32 * 2;
-
-                let x = (rect.right - rect.left - icon_w) / 2;
-                let y = (rect.bottom - rect.top - icon_h) / 2;
-
-                // draw the icon
-                let result = unsafe { DrawIconEx(hdc,
-                    x,
-                    y,
-                    hicon,
-                    60,
-                    60,
-                    // icon_w,
-                    // icon_h,
-                    0,
-                    HBRUSH::default(),
-                    DI_NORMAL)
-                };
-                if result == 0 {
-                    let error = unsafe { GetLastError() };
-                    println!("error: {:?}", error);
-                }
-
-                // create a button to expand items
-                let width = 80;
-                let height = 20;
-                let px = (rect.right - rect.left - width) / 2;
-                let py = rect.bottom - (height + 10);
-                expand_button(hwnd, (px, py), width, height);
-            }
 
 
             unsafe { EndPaint(hwnd, &ps) };
