@@ -4,7 +4,7 @@
 
 use std::{borrow::Borrow, ffi::OsStr, iter::once, os::windows::ffi::OsStrExt, path::PathBuf, ptr::null_mut, sync::{Arc, Mutex}};
 
-use windows_sys::Win32::{Foundation::{GetLastError, HINSTANCE, HWND, LPARAM, LRESULT, RECT, WPARAM}, Graphics::Gdi::{BeginPaint, CreateEllipticRgn, CreateSolidBrush, EndPaint, InvalidateRect, SetWindowRgn, UpdateWindow, HBRUSH, PAINTSTRUCT}, System::{LibraryLoader::GetModuleHandleW, Ole::OleInitialize}, UI::{Shell::{DragFinish, DragQueryFileW, SHGetFileInfoW, HDROP, SHFILEINFOW, SHGFI_ICON, SHGFI_LARGEICON}, WindowsAndMessaging::{CreateWindowExW, DefWindowProcW, DrawIconEx, GetClassNameW, GetClientRect, GetIconInfo, GetWindowLongPtrW, PostQuitMessage, RegisterClassExW, SetWindowLongPtrW, SetWindowPos, CREATESTRUCTW, CS_OWNDC, DI_NORMAL, GWLP_USERDATA, HCURSOR, HICON, HMENU, HWND_TOP, SWP_NOMOVE, SWP_NOSIZE, WM_COMMAND, WM_CREATE, WM_DESTROY, WM_DROPFILES, WM_LBUTTONDOWN, WM_PAINT, WNDCLASSEXW, WS_CHILD, WS_OVERLAPPEDWINDOW, WS_VISIBLE}}};
+use windows_sys::Win32::{Foundation::{GetLastError, HINSTANCE, HWND, LPARAM, LRESULT, RECT, WPARAM}, Graphics::Gdi::{BeginPaint, CreateEllipticRgn, CreateSolidBrush, EndPaint, InvalidateRect, SetWindowRgn, UpdateWindow, HBRUSH, PAINTSTRUCT}, System::{LibraryLoader::GetModuleHandleW, Ole::OleInitialize}, UI::{Shell::{DragFinish, DragQueryFileW, SHGetFileInfoW, HDROP, SHFILEINFOW, SHGFI_ICON, SHGFI_LARGEICON}, WindowsAndMessaging::{CreateWindowExW, DefWindowProcW, DrawIconEx, GetClassNameW, GetClientRect, GetIconInfo, GetWindowLongPtrW, LoadIconW, PostQuitMessage, RegisterClassExW, SendMessageW, SetWindowLongPtrW, SetWindowPos, CREATESTRUCTW, CS_OWNDC, DI_NORMAL, GWLP_USERDATA, HCURSOR, HICON, HMENU, HWND_TOP, SWP_NOMOVE, SWP_NOSIZE, WM_COMMAND, WM_CREATE, WM_DESTROY, WM_DROPFILES, WM_LBUTTONDOWN, WM_PAINT, WM_SETICON, WNDCLASSEXW, WS_CHILD, WS_OVERLAPPEDWINDOW, WS_VISIBLE}}};
 
 use crate::{constants::ID_EXPAND_BUTTON, storage::clipbox::ClipBox, tools::encoding::WideChar, windows::{components::buttons::expand_button, functions::get_child_window, procedures::icon_box_proc}};
 
@@ -145,7 +145,7 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
                             hbrBackground: HBRUSH::default(), // use the default window color
                             lpszMenuName: null_mut(),
                             lpszClassName: class_name,
-                            hIconSm: hicon,
+                            hIconSm: HICON::default(),
                         };
                         unsafe { RegisterClassExW(&icon_class) };
 
@@ -157,6 +157,8 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
                         // get icon dimensions
                         let mut icon_info = unsafe { std::mem::zeroed() };
                         unsafe { GetIconInfo(hicon, &mut icon_info) };
+                        HICON = Some(hicon);
+
                         let icon_w= icon_info.xHotspot as i32 * 4;
                         let icon_h = icon_info.yHotspot as i32 * 4;
 
@@ -179,6 +181,9 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
                                 null_mut(),
                             )
                         };
+                        // send message to icon_box_proc with the hicon ptr in lparam
+                        SendMessageW(icon_box, WM_SETICON, WPARAM::default(), hicon as LPARAM);
+
                         unsafe { SetWindowPos(icon_box, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE) };
                         println!("NEW ICON BOX: {:?}", icon_box);
 

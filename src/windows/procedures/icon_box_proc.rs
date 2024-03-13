@@ -1,10 +1,11 @@
-use windows_sys::Win32::{Foundation::{GetLastError, HWND, LPARAM, LRESULT, WPARAM}, Graphics::Gdi::{BeginPaint, EndPaint, HBRUSH, PAINTSTRUCT}, UI::WindowsAndMessaging::{DefWindowProcW, DrawIconEx, GetClassLongPtrW, GetClassNameW, GetClientRect, GetIconInfo, GetWindowLongPtrW, DI_NORMAL, GCLP_HICON, GWLP_USERDATA, HICON, WM_LBUTTONDOWN, WM_PAINT}};
+use windows_sys::Win32::{Foundation::{GetLastError, HWND, LPARAM, LRESULT, WPARAM}, Graphics::Gdi::{BeginPaint, EndPaint, HBRUSH, PAINTSTRUCT}, UI::WindowsAndMessaging::{DefWindowProcW, DrawIconEx, GetClassLongPtrW, GetClassNameW, GetClientRect, GetIconInfo, GetWindowLongPtrW, DI_NORMAL, GCLP_HICON, GWLP_USERDATA, HICON, WM_LBUTTONDOWN, WM_PAINT, WM_SETICON}};
 
 use crate::{tools::encoding::WideChar, windows::functions::get_child_window};
 
 
 // Define a window procedure
 pub unsafe extern "system" fn icon_box_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    static mut HICON: Option<HICON> = None;
 
     match msg {
         WM_LBUTTONDOWN => {
@@ -44,14 +45,20 @@ pub unsafe extern "system" fn icon_box_proc(hwnd: HWND, msg: u32, wparam: WPARAM
 
             0
         }
+        WM_SETICON => {
+            println!("Setting icon in icon_box");
+            HICON = Some(lparam as HICON);
+
+            0
+        }
         WM_PAINT => {
             println!("Painting icon_box");
             let mut ps: PAINTSTRUCT = unsafe { std::mem::zeroed() };
             let hdc = unsafe { BeginPaint(hwnd, &mut ps) };
 
-            let hicon: Option<HICON> = Some(unsafe { GetClassLongPtrW(hwnd, GCLP_HICON) as HICON });
+            let hicon = HICON.expect("No icon found");
 
-            if let Some(hicon) = hicon {
+            // if let Some(hicon) = hicon {
                 // get window dimensions
                 let mut rect = unsafe { std::mem::zeroed() };
                 unsafe { GetClientRect(hwnd, &mut rect) };
@@ -83,7 +90,7 @@ pub unsafe extern "system" fn icon_box_proc(hwnd: HWND, msg: u32, wparam: WPARAM
                     println!("error: {:?}", error);
                 }
 
-            }
+            // }
 
             unsafe { EndPaint(hwnd, &ps) };
             0
