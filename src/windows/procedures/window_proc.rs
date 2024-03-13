@@ -4,7 +4,7 @@
 
 use std::{borrow::Borrow, ffi::OsStr, iter::once, os::windows::ffi::OsStrExt, path::PathBuf, ptr::null_mut, sync::{Arc, Mutex}};
 
-use windows_sys::Win32::{Foundation::{GetLastError, HINSTANCE, HWND, LPARAM, LRESULT, RECT, WPARAM}, Graphics::Gdi::{BeginPaint, CreateEllipticRgn, CreateSolidBrush, EndPaint, InvalidateRect, SetWindowRgn, UpdateWindow, HBRUSH, PAINTSTRUCT}, System::{LibraryLoader::GetModuleHandleW, Ole::OleInitialize}, UI::{Shell::{DragFinish, DragQueryFileW, SHGetFileInfoW, HDROP, SHFILEINFOW, SHGFI_ICON, SHGFI_LARGEICON}, WindowsAndMessaging::{CreateWindowExW, DefWindowProcW, DrawIconEx, GetClassNameW, GetClientRect, GetIconInfo, GetWindowLongPtrW, PostQuitMessage, RegisterClassExW, SetWindowLongPtrW, CREATESTRUCTW, CS_OWNDC, DI_NORMAL, GWLP_USERDATA, HCURSOR, HICON, HMENU, WM_COMMAND, WM_CREATE, WM_DESTROY, WM_DROPFILES, WM_LBUTTONDOWN, WM_PAINT, WNDCLASSEXW, WS_CHILD, WS_OVERLAPPEDWINDOW, WS_VISIBLE}}};
+use windows_sys::Win32::{Foundation::{GetLastError, HINSTANCE, HWND, LPARAM, LRESULT, RECT, WPARAM}, Graphics::Gdi::{BeginPaint, CreateEllipticRgn, CreateSolidBrush, EndPaint, InvalidateRect, SetWindowRgn, UpdateWindow, HBRUSH, PAINTSTRUCT}, System::{LibraryLoader::GetModuleHandleW, Ole::OleInitialize}, UI::{Shell::{DragFinish, DragQueryFileW, SHGetFileInfoW, HDROP, SHFILEINFOW, SHGFI_ICON, SHGFI_LARGEICON}, WindowsAndMessaging::{CreateWindowExW, DefWindowProcW, DrawIconEx, GetClassNameW, GetClientRect, GetIconInfo, GetWindowLongPtrW, PostQuitMessage, RegisterClassExW, SetWindowLongPtrW, SetWindowPos, CREATESTRUCTW, CS_OWNDC, DI_NORMAL, GWLP_USERDATA, HCURSOR, HICON, HMENU, HWND_TOP, SWP_NOMOVE, SWP_NOSIZE, WM_COMMAND, WM_CREATE, WM_DESTROY, WM_DROPFILES, WM_LBUTTONDOWN, WM_PAINT, WNDCLASSEXW, WS_CHILD, WS_OVERLAPPEDWINDOW, WS_VISIBLE}}};
 
 use crate::{constants::ID_EXPAND_BUTTON, storage::clipbox::ClipBox, tools::encoding::WideChar, windows::{components::buttons::expand_button, functions::get_child_window, procedures::icon_box_proc}};
 
@@ -106,7 +106,7 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
                 let file_lossy = String::from_utf16_lossy(&file_name);
                 let file_name_string = PathBuf::from(&file_lossy.trim_end_matches('\0'));
                 let file_path = clip_box_guard.path.join(file_name_string.file_name().expect("Failed to get file name"));
-                println!("file_path: {:?}", file_path);
+                // println!("file_path: {:?}", file_path);
 
                 // get file icon
                 let mut shfi: SHFILEINFOW = unsafe { std::mem::zeroed() };
@@ -179,6 +179,8 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
                                 null_mut(),
                             )
                         };
+                        unsafe { SetWindowPos(icon_box, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE) };
+                        println!("NEW ICON BOX: {:?}", icon_box);
 
                         // make icon_box circular
                         let mut rect = RECT { left: 0, top: 0, right: 0, bottom: 0 };
@@ -191,22 +193,23 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
                         // set the window's region
                         unsafe { SetWindowRgn(icon_box, hrgn, windows_sys::Win32::Foundation::TRUE) };
 
-                        ICON_BOXES.push(icon_box);
+                        ICON_BOXES.push(icon_box.clone());
 
                         let temp_ptr = file_path.as_ptr() as isize;
                         println!("BEFORE: {:?}", temp_ptr);
                         let path_wide = WideChar::from_ptr(temp_ptr as *const u16);
-                        println!("path_wide: {:?}", path_wide);
+                        // println!("path_wide: {:?}", path_wide);
 
-                        let str_path = path_wide.to_string_lossy();
-                        println!("icon_box path: {:?}", str_path);
+                        // let str_path = path_wide.to_string_lossy();
+                        // println!("icon_box path: {:?}", str_path);
 
-                        println!("BEFORE HWND: {:?}", icon_box);
+                        // println!("BEFORE HWND: {:?}", icon_box);
 
                         // let path_ptr = Box::into_raw(Box::new(file_path)) as isize;
                         // println!("path_ptr(before): {:?}", path_ptr);
                         let path_ptr = Box::into_raw(Box::new(file_path)) as isize;
                         // Send file/directory path to be attached to icon_box
+                        println!("SETTING USER DATA: {:?}", icon_box);
                         SetWindowLongPtrW(icon_box, GWLP_USERDATA, path_ptr);
                     }
 

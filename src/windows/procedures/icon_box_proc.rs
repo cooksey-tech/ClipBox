@@ -9,7 +9,7 @@ pub unsafe extern "system" fn icon_box_proc(hwnd: HWND, msg: u32, wparam: WPARAM
     match msg {
         WM_LBUTTONDOWN => {
             println!("Mouse click detected in icon_box");
-
+            println!("icon_box_proc: {:?}", hwnd);
             // Get the child window under the cursor
             let child_hwnd = get_child_window(hwnd);
 
