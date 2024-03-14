@@ -15,7 +15,7 @@ pub fn get_child_window(hwnd: HWND) -> HWND {
             0
         }
         _ => {
-            // Convert the cursor position to client coordinates
+            // Convert the cursor position to screen coordinates
             unsafe {
                 ScreenToClient(hwnd, cursor_pos);
                 return ChildWindowFromPoint(hwnd, *cursor_pos)

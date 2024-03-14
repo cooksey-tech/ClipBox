@@ -1,4 +1,5 @@
-use windows_sys::Win32::{Foundation::{GetLastError, HWND, LPARAM, LRESULT, WPARAM}, Graphics::Gdi::{BeginPaint, EndPaint, HBRUSH, PAINTSTRUCT}, UI::WindowsAndMessaging::{DefWindowProcW, DrawIconEx, GetClassLongPtrW, GetClassNameW, GetClientRect, GetIconInfo, GetWindowLongPtrW, DI_NORMAL, GCLP_HICON, GWLP_USERDATA, HICON, WM_LBUTTONDOWN, WM_PAINT, WM_SETICON}};
+use windows_sys::Win32::{Foundation::{GetLastError, HWND, LPARAM, LRESULT, POINT, WPARAM}, Graphics::Gdi::{BeginPaint, EndPaint, ScreenToClient, HBRUSH, PAINTSTRUCT}, UI::{Input::KeyboardAndMouse::ReleaseCapture, WindowsAndMessaging::{DefWindowProcW, DrawIconEx, GetClassLongPtrW, GetClassNameW, GetClientRect, GetCursorPos, GetIconInfo, GetWindowLongPtrW, SetWindowPos, DI_NORMAL, GCLP_HICON, GWLP_USERDATA, HICON, HWND_TOP, SWP_NOSIZE, SWP_NOZORDER, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEMOVE, WM_PAINT, WM_SETICON}}};
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::SetCapture;
 
 use crate::{tools::encoding::WideChar, windows::functions::get_child_window};
 
@@ -6,10 +7,16 @@ use crate::{tools::encoding::WideChar, windows::functions::get_child_window};
 // Define a window procedure
 pub unsafe extern "system" fn icon_box_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     static mut HICON: Option<HICON> = None;
+    static mut MOUSE_DOWN: bool = false; // track the mouse state
+    static mut CURSOR_LOC: POINT = POINT { x: 0, y: 0 };
+    static mut WINDOW_LOC: POINT = POINT { x: 0, y: 0 };
 
     match msg {
         WM_LBUTTONDOWN => {
             println!("Mouse click detected in icon_box");
+            MOUSE_DOWN = true;
+            SetCapture(hwnd);
+
             println!("icon_box_proc: {:?}", hwnd);
             // Get the child window under the cursor
             let child_hwnd = get_child_window(hwnd);
@@ -35,13 +42,49 @@ pub unsafe extern "system" fn icon_box_proc(hwnd: HWND, msg: u32, wparam: WPARAM
                         println!("path_ptr(after): {:?}", path);
 
 
+                        // get initial cursor location
+                        let cursor_pos = &mut POINT { x: 0, y: 0 };
 
+                        GetCursorPos(cursor_pos);
+                        // convert cursor location to screen coordinates
+                        ScreenToClient(hwnd, cursor_pos);
+                        CURSOR_LOC = *cursor_pos;
+
+                        // get initial icon_box window location
+                        let mut rect = std::mem::zeroed();
+                        GetClientRect(hwnd, &mut rect);
+                        WINDOW_LOC = POINT { x: rect.left, y: rect.top };
                     };
                 }
 
             } else {
                 println!("No child window found");
             }
+
+            0
+        }
+        WM_LBUTTONUP => {
+            println!("Mouse release detected in icon_box");
+            MOUSE_DOWN = false;
+            ReleaseCapture();
+            
+            0
+        }
+        WM_MOUSEMOVE => {
+            if MOUSE_DOWN {
+                println!("Mouse move detected in icon_box");
+                SetCapture(hwnd);
+                // get the cursor location
+                let cursor_pos = &mut POINT { x: 0, y: 0 };
+                GetCursorPos(cursor_pos);
+
+                // update the icon_box window location
+                let x = WINDOW_LOC.x + (cursor_pos.x - CURSOR_LOC.x);
+                let y = WINDOW_LOC.y + (cursor_pos.y - CURSOR_LOC.y);
+
+                SetWindowPos(hwnd, HWND_TOP, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+                CURSOR_LOC = *cursor_pos;
+            };
 
             0
         }

@@ -246,7 +246,7 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
             println!("ICON_BOXES: {:?}", ICON_BOXES);
 
             // DoDragDrop process starts here
-            unsafe { OleInitialize(null_mut()) };
+            // unsafe { OleInitialize(null_mut()) };
             // this will contain the data to be dragged
 
 
