@@ -23,6 +23,7 @@ pub unsafe extern "system" fn icon_box_proc(hwnd: HWND, msg: u32, wparam: WPARAM
 
             // Change to popup window
             SetWindowLongPtrW(child_hwnd, GWL_STYLE, WS_POPUP as _);
+            SetWindowLongPtrW(hwnd, GWLP_USERDATA, child_hwnd as _);
 
             if child_hwnd != 0 {
 
@@ -71,7 +72,7 @@ pub unsafe extern "system" fn icon_box_proc(hwnd: HWND, msg: u32, wparam: WPARAM
             MOUSE_DOWN = false;
 
             // Get the child window under the cursor
-            let child_hwnd = get_child_window(hwnd);
+            let child_hwnd = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as HWND;
 
             // Change to popup window
             SetWindowLongPtrW(child_hwnd, GWL_STYLE, WS_CHILD as _);
