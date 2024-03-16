@@ -132,7 +132,6 @@ pub fn create_window(clip_box: &ClipBox) {
         ShowWindow(window, SW_SHOW);
     };
 
-    unsafe {  };
     println!("window: {:?}", window);
 
     // Process Windows messages
@@ -161,4 +160,3 @@ pub fn create_window(clip_box: &ClipBox) {
         }
     }
 }
-

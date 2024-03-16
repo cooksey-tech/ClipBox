@@ -100,6 +100,8 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
             // it's best to keep file_count directly above the for..in loop
             // otherwise, the optimizer could create issues
             let file_count = unsafe { DragQueryFileW(hdrop, 0xFFFFFFFF, null_mut(), 0) };
+            println!("file_count: {:?}", file_count);
+
             for i in 0..file_count {
                 let mut file_name: [u16; 256] = [0; 256];
                 unsafe { DragQueryFileW(hdrop, i, &mut file_name as *mut u16, 256) };
@@ -123,6 +125,7 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
                         flags
                     )
                 };
+                
                 if result != 0 {
 
                     HICON = Some(shfi.hIcon);

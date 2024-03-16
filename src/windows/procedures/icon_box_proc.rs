@@ -1,4 +1,4 @@
-use windows_sys::Win32::{Foundation::{GetLastError, HWND, LPARAM, LRESULT, POINT, WPARAM}, Graphics::Gdi::{BeginPaint, EndPaint, ScreenToClient, HBRUSH, PAINTSTRUCT}, UI::{Input::KeyboardAndMouse::ReleaseCapture, WindowsAndMessaging::{DefWindowProcW, DrawIconEx, GetClassLongPtrW, GetClassNameW, GetClientRect, GetCursorPos, GetIconInfo, GetWindowLongPtrW, GetWindowRect, SetWindowPos, DI_NORMAL, GCLP_HICON, GWLP_USERDATA, HICON, HWND_TOP, SWP_NOSIZE, SWP_NOZORDER, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEMOVE, WM_PAINT, WM_SETICON}}};
+use windows_sys::Win32::{Foundation::{GetLastError, HWND, LPARAM, LRESULT, POINT, WPARAM}, Graphics::Gdi::{BeginPaint, EndPaint, ScreenToClient, HBRUSH, PAINTSTRUCT}, UI::{Input::KeyboardAndMouse::ReleaseCapture, WindowsAndMessaging::{DefWindowProcW, DrawIconEx, GetClassLongPtrW, GetClassNameW, GetClientRect, GetCursorPos, GetIconInfo, GetWindowLongPtrW, GetWindowRect, SetWindowLongPtrW, SetWindowPos, DI_NORMAL, GCLP_HICON, GWLP_USERDATA, GWL_STYLE, HICON, HWND_TOP, SWP_NOSIZE, SWP_NOZORDER, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEMOVE, WM_PAINT, WM_SETICON, WS_CHILD, WS_POPUP}}};
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::SetCapture;
 
 use crate::{tools::encoding::WideChar, windows::functions::get_child_window};
@@ -20,6 +20,9 @@ pub unsafe extern "system" fn icon_box_proc(hwnd: HWND, msg: u32, wparam: WPARAM
             println!("icon_box_proc: {:?}", hwnd);
             // Get the child window under the cursor
             let child_hwnd = get_child_window(hwnd);
+
+            // Change to popup window
+            SetWindowLongPtrW(child_hwnd, GWL_STYLE, WS_POPUP as _);
 
             if child_hwnd != 0 {
 
@@ -66,6 +69,13 @@ pub unsafe extern "system" fn icon_box_proc(hwnd: HWND, msg: u32, wparam: WPARAM
         WM_LBUTTONUP => {
             println!("Mouse release detected in icon_box");
             MOUSE_DOWN = false;
+
+            // Get the child window under the cursor
+            let child_hwnd = get_child_window(hwnd);
+
+            // Change to popup window
+            SetWindowLongPtrW(child_hwnd, GWL_STYLE, WS_CHILD as _);
+
             ReleaseCapture();
 
             0
