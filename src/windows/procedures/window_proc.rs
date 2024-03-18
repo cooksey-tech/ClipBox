@@ -2,7 +2,7 @@
 
 // extern "system" is telling the Rust compiler to use the "system" ABI (Application Binary Interface) for this function.
 
-use std::{borrow::Borrow, ffi::OsStr, iter::once, os::windows::ffi::OsStrExt, path::PathBuf, ptr::null_mut, sync::{Arc, Mutex}};
+use std::{borrow::Borrow, ffi::OsStr, iter::once, os::windows::ffi::OsStrExt, path::PathBuf, ptr::null_mut, sync::{Arc, Mutex}, thread};
 
 use windows_sys::Win32::{Foundation::{GetLastError, HINSTANCE, HWND, LPARAM, LRESULT, RECT, WPARAM}, Graphics::Gdi::{BeginPaint, CreateEllipticRgn, CreateSolidBrush, EndPaint, InvalidateRect, SetWindowRgn, UpdateWindow, HBRUSH, PAINTSTRUCT}, System::{LibraryLoader::GetModuleHandleW, Ole::OleInitialize}, UI::{Shell::{DragFinish, DragQueryFileW, SHGetFileInfoW, HDROP, SHFILEINFOW, SHGFI_ICON, SHGFI_LARGEICON}, WindowsAndMessaging::{CreateWindowExW, DefWindowProcW, DrawIconEx, GetClassNameW, GetClientRect, GetIconInfo, GetWindowLongPtrW, LoadIconW, PostQuitMessage, RegisterClassExW, SendMessageW, SetWindowLongPtrW, SetWindowPos, CREATESTRUCTW, CS_OWNDC, DI_NORMAL, GWLP_USERDATA, HCURSOR, HICON, HMENU, HWND_TOP, SWP_NOMOVE, SWP_NOSIZE, WM_COMMAND, WM_CREATE, WM_DESTROY, WM_DROPFILES, WM_LBUTTONDOWN, WM_PAINT, WM_SETICON, WNDCLASSEXW, WS_CHILD, WS_OVERLAPPEDWINDOW, WS_VISIBLE}}};
 
@@ -125,7 +125,7 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
                         flags
                     )
                 };
-                
+
                 if result != 0 {
 
                     HICON = Some(shfi.hIcon);
@@ -196,6 +196,7 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
                         let width = rect.right - rect.left;
                         let height = rect.bottom - rect.top;
                         let radius = std::cmp::min(width, height) / 2;
+
                         // create a circular region
                         let hrgn = unsafe { CreateEllipticRgn(rect.left, rect.top, rect.left + radius * 2, rect.top + radius * 2) };
                         // set the window's region
@@ -205,16 +206,7 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
 
                         let temp_ptr = file_path.as_ptr() as isize;
                         println!("BEFORE: {:?}", temp_ptr);
-                        let path_wide = WideChar::from_ptr(temp_ptr as *const u16);
-                        // println!("path_wide: {:?}", path_wide);
 
-                        // let str_path = path_wide.to_string_lossy();
-                        // println!("icon_box path: {:?}", str_path);
-
-                        // println!("BEFORE HWND: {:?}", icon_box);
-
-                        // let path_ptr = Box::into_raw(Box::new(file_path)) as isize;
-                        // println!("path_ptr(before): {:?}", path_ptr);
                         let path_ptr = Box::into_raw(Box::new(file_path)) as isize;
                         // Send file/directory path to be attached to icon_box
                         println!("SETTING USER DATA: {:?}", icon_box);
@@ -244,16 +236,17 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
             0
         }
         WM_LBUTTONDOWN => {
+
             println!("\nWM_LBUTTONDOWN");
 
             println!("ICON_BOXES: {:?}", ICON_BOXES);
+            let child_hwnd = get_child_window(hwnd);
+            SendMessageW(child_hwnd, WM_LBUTTONDOWN, WPARAM::default(), LPARAM::default());
 
             // DoDragDrop process starts here
             // unsafe { OleInitialize(null_mut()) };
             // this will contain the data to be dragged
-
-
-
+            
             0
         }
         WM_PAINT => {
