@@ -17,7 +17,7 @@ pub unsafe extern "system" fn icon_box_proc(hwnd: HWND, msg: u32, wparam: WPARAM
 
     match msg {
         WM_LBUTTONDOWN => {
-            println!("Mouse click detected in icon_box");
+            println!("Entering WM_LBUTTONDOWN in icon_box");
             MOUSE_DOWN = true;
 
             SetCapture(hwnd);
@@ -67,11 +67,12 @@ pub unsafe extern "system" fn icon_box_proc(hwnd: HWND, msg: u32, wparam: WPARAM
             } else {
                 println!("No child window found");
             }
+            println!("Exiting WM_LBUTTONDOWN in icon_box");
 
             0
         }
         WM_LBUTTONUP => {
-            println!("Mouse release detected in icon_box");
+            println!("Entering WM_LBUTTONUP in icon_box");
             MOUSE_DOWN = false;
             println!("mouse_up: {:?}", MOUSE_DOWN);
 
@@ -81,9 +82,9 @@ pub unsafe extern "system" fn icon_box_proc(hwnd: HWND, msg: u32, wparam: WPARAM
             // let child_hwnd = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as HWND;
 
             // Change to popup window
-            // SetWindowLongPtrW(child_hwnd, GWL_STYLE, WS_CHILD as _);
+            SetWindowLongPtrW(hwnd, GWL_STYLE, WS_CHILD as _);
 
-
+            println!("Exiting WM_LBUTTONUP in icon_box");
             0
         }
         WM_MOUSEMOVE => {

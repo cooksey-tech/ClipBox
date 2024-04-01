@@ -241,12 +241,17 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
 
             println!("ICON_BOXES: {:?}", ICON_BOXES);
             let child_hwnd = get_child_window(hwnd);
-            SendMessageW(child_hwnd, WM_LBUTTONDOWN, WPARAM::default(), LPARAM::default());
+            // Prevent recursion on the same window
+            if child_hwnd != hwnd {
+                println!("child_hwnd: {:?}", child_hwnd);
+
+                SendMessageW(child_hwnd, WM_LBUTTONDOWN, WPARAM::default(), LPARAM::default());
+            }
 
             // DoDragDrop process starts here
             // unsafe { OleInitialize(null_mut()) };
             // this will contain the data to be dragged
-            
+
             0
         }
         WM_PAINT => {
