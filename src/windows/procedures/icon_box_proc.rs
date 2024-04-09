@@ -1,3 +1,5 @@
+use std::thread;
+
 use windows_sys::Win32::{Foundation::{GetLastError, HWND, LPARAM, LRESULT, POINT, WPARAM}, Graphics::Gdi::{BeginPaint, EndPaint, ScreenToClient, HBRUSH, PAINTSTRUCT}, UI::{Input::KeyboardAndMouse::ReleaseCapture, WindowsAndMessaging::{DefWindowProcW, DrawIconEx, GetClassLongPtrW, GetClassNameW, GetClientRect, GetCursorPos, GetIconInfo, GetWindowLongPtrW, GetWindowRect, SetWindowLongPtrW, SetWindowPos, DI_NORMAL, GCLP_HICON, GWLP_USERDATA, GWL_STYLE, HICON, HWND_TOP, SWP_NOSIZE, SWP_NOZORDER, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEMOVE, WM_PAINT, WM_SETICON, WS_CHILD, WS_POPUP}}};
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::SetCapture;
 
@@ -17,16 +19,17 @@ pub unsafe extern "system" fn icon_box_proc(hwnd: HWND, msg: u32, wparam: WPARAM
 
     match msg {
         WM_LBUTTONDOWN => {
-            println!("Entering WM_LBUTTONDOWN in icon_box");
+            println!("\nEntering WM_LBUTTONDOWN in icon_box");
             MOUSE_DOWN = true;
 
             SetCapture(hwnd);
 
-            println!("icon_box_proc: {:?}", hwnd);
+            // println!("icon_box_proc: {:?}", hwnd);
 
+            thread::spawn(move || {
             // Change to popup window
-            SetWindowLongPtrW(hwnd, GWL_STYLE, WS_POPUP as _);
-            // SetWindowLongPtrW(hwnd, GWLP_USERDATA, child_hwnd as _);
+            // SetWindowLongPtrW(hwnd, GWL_STYLE, WS_POPUP as _);
+            // SetWindowLongPtrW(hwnd, GWLP_USERDATA, hwnd as _);
 
             if hwnd != 0 {
 
@@ -68,6 +71,7 @@ pub unsafe extern "system" fn icon_box_proc(hwnd: HWND, msg: u32, wparam: WPARAM
                 println!("No child window found");
             }
             println!("Exiting WM_LBUTTONDOWN in icon_box");
+            });
 
             0
         }
@@ -76,13 +80,13 @@ pub unsafe extern "system" fn icon_box_proc(hwnd: HWND, msg: u32, wparam: WPARAM
             MOUSE_DOWN = false;
             println!("mouse_up: {:?}", MOUSE_DOWN);
 
-            ReleaseCapture();
+            // ReleaseCapture();
 
             // Get the child window under the cursor
             // let child_hwnd = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as HWND;
 
             // Change to popup window
-            SetWindowLongPtrW(hwnd, GWL_STYLE, WS_CHILD as _);
+            // SetWindowLongPtrW(hwnd, GWL_STYLE, WS_CHILD as _);
 
             println!("Exiting WM_LBUTTONUP in icon_box");
             0
