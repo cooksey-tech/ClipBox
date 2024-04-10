@@ -28,5 +28,6 @@ features = [
     "Win32_System_Com",
     "Win32_System_Ole",
     "Win32_System_Com_StructuredStorage",
-    "Win32_UI_Input_KeyboardAndMouse"
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_System_SystemServices"
 ]

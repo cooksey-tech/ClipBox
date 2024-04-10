@@ -237,16 +237,19 @@ pub unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, 
         }
         WM_LBUTTONDOWN => {
 
-            println!("\nWM_LBUTTONDOWN");
+            // println!("\nWM_LBUTTONDOWN");
 
-            println!("ICON_BOXES: {:?}", ICON_BOXES);
-            let child_hwnd = get_child_window(hwnd);
-            // Prevent recursion on the same window
-            if child_hwnd != hwnd {
-                println!("child_hwnd: {:?}", child_hwnd);
+            // println!("ICON_BOXES: {:?}", ICON_BOXES);
+            // let child_hwnd = get_child_window(hwnd);
+            // println!("child_hwnd: ${:?}", child_hwnd);
 
-                SendMessageW(child_hwnd, WM_LBUTTONDOWN, WPARAM::default(), LPARAM::default());
-            }
+            // // Prevent recursion on the same window
+            // if child_hwnd != hwnd {
+            //     println!("child_hwnd: {:?}", child_hwnd);
+
+            //     SendMessageW(child_hwnd, WM_LBUTTONDOWN, WPARAM::default(), LPARAM::default());
+            // }
+
 
             // DoDragDrop process starts here
             // unsafe { OleInitialize(null_mut()) };
