@@ -17,79 +17,18 @@ pub unsafe extern "system" fn icon_box_proc(hwnd: HWND, msg: u32, wparam: WPARAM
     match msg {
         WM_LBUTTONDOWN => {
             println!("\nEntering WM_LBUTTONDOWN in icon_box - {:?}", hwnd);
-            // SetWindowLongPtrW(hwnd, GWL_STYLE, WS_POPUP as _);
-
-
             SetCapture(hwnd);
             GetWindowRect(hwnd, &mut WINDOW_RECT);
             GetCursorPos(&mut CURSOR_LOC);
             // ScreenToClient(hwnd, &mut CURSOR_LOC);
 
             println!("last error: {:?}", GetLastError());
-            // MOUSE_DOWN = true;
-
-
-
-            // println!("icon_box_proc: {:?}", hwnd);
-
-            // thread::spawn(move || {
-            // Change to popup window
-            // SetWindowLongPtrW(hwnd, GWLP_USERDATA, hwnd as _);
-
-            // if hwnd != 0 {
-
-            //     // Check if the child window has a file path
-            //     let classname = WideChar::from("");
-            //     unsafe { GetClassNameW(hwnd, classname.as_ptr() as *mut u16, 256) };
-            //     let class_string = unsafe { classname.to_string() };
-
-            //     if class_string == "ICON_BOX" {
-            //         unsafe {
-            //             // We can access isize as u16 because we know that the pointer is a u16
-            //             let file_info = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
-            //             println!("AFTER: {:?}", file_info);
-
-            //             let path_box = Box::from_raw(file_info as *mut WideChar);
-            //             let path = path_box.to_string();
-            //             // ensure that the memory is not deallocated
-            //             Box::leak(path_box);
-
-            //             println!("path_ptr(after): {:?}", path);
-
-
-            //             // get initial cursor location
-            //             let cursor_pos = &mut POINT { x: 0, y: 0 };
-
-            //             GetCursorPos(cursor_pos);
-            //             // convert cursor location to screen coordinates
-            //             ScreenToClient(hwnd, cursor_pos);
-            //             CURSOR_LOC = *cursor_pos;
-
-            //             // get initial icon_box window location
-            //             let mut rect = std::mem::zeroed();
-            //             GetWindowRect(hwnd, &mut rect);
-            //             WINDOW_RECT = rect;
-            //             WINDOW_LOC = POINT { x: rect.left, y: rect.top };
-            //         };
-            //     }
-
-            // } else {
-            //     println!("No child window found");
-            // }
-            // println!("Exiting WM_LBUTTONDOWN in icon_box - ${:?}", hwnd);
-            // });
 
             0
         }
         WM_LBUTTONUP => {
             println!("Entering WM_LBUTTONUP in icon_box");
             ReleaseCapture();
-
-            // Get the child window under the cursor
-            // let child_hwnd = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as HWND;
-
-            // Change to popup window
-            // SetWindowLongPtrW(hwnd, GWL_STYLE, WS_CHILD as _);
 
             println!("Exiting WM_LBUTTONUP in icon_box - {:?}", hwnd);
             0
@@ -117,29 +56,7 @@ pub unsafe extern "system" fn icon_box_proc(hwnd: HWND, msg: u32, wparam: WPARAM
                     println!("MoveWindow succeeded");
                 }
 
-                // // get the cursor location
-                // let cursor_pos = &mut POINT { x: 0, y: 0 };
-                // GetCursorPos(cursor_pos);
-                // // ScreenToClient(hwnd, cursor_pos);
 
-                // // update the icon_box window location
-                // let x = WINDOW_LOC.x + (cursor_pos.x - CURSOR_LOC.x);
-                // let y = WINDOW_LOC.y + (cursor_pos.y - CURSOR_LOC.y);
-                // WINDOW_LOC = POINT { x, y };
-                // // let mut client_point = POINT { x, y };
-                // // ScreenToClient(hwnd, &mut client_point);
-                // println!("x, y: ${:?}, ${:?}", x, y);
-
-                // let width = WINDOW_RECT.right - WINDOW_RECT.left;
-                // let height = WINDOW_RECT.bottom - WINDOW_RECT.top;
-                // MoveWindow(hwnd, x, y, width, height, TRUE);
-
-                // // InvalidateRect(hwnd, null_mut(), TRUE);
-                // // SetWindowPos(hwnd, HWND_TOP, 100, 100, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
-                // // InvalidateRect(hwnd, null_mut(), TRUE);
-
-                // CURSOR_LOC = *cursor_pos;
-                // println!("window_loc: {:?}", WINDOW_LOC.x);
 
             }
 
